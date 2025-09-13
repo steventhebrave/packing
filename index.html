@@ -1,0 +1,41 @@
+<script type="module">
+  import * as Y from "https://esm.sh/yjs";
+  import { WebsocketProvider } from "https://esm.sh/y-websocket";
+
+  const SERVER = "wss://packing-list-realtime.fly.dev";
+  const ROOM = "packing-list-very-long-unguessable-secret"; // share only with your people
+
+  const doc = new Y.Doc();
+  const provider = new WebsocketProvider(SERVER, ROOM, doc);
+
+  // Example structure with sublists:
+  // root = Map { "sublists" -> Map { "Clothes" -> Array, "Toiletries" -> Array, ... } }
+  const root = doc.getMap("root");
+  if (!root.has("sublists")) root.set("sublists", new Y.Map());
+  const sublists = root.get("sublists");
+
+  // Ensure a sublist exists, then push an item
+  function addItem(listName, text) {
+    if (!sublists.has(listName)) sublists.set(listName, new Y.Array());
+    const arr = sublists.get(listName);
+    arr.push([{ id: crypto.randomUUID(), text, done:false }]);
+  }
+
+  // Toggle example
+  function toggle(listName, id) {
+    const arr = sublists.get(listName);
+    const a = arr.toArray();
+    const i = a.findIndex(x => x.id === id);
+    if (i >= 0) {
+      arr.delete(i, 1);
+      arr.insert(i, [{ ...a[i], done: !a[i].done }]);
+    }
+  }
+
+  // Observe changes and re-render UI
+  root.observeDeep(() => render());
+
+  function render() {
+    // read sublists and draw your UI
+  }
+</script>
