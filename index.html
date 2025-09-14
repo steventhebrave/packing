@@ -198,6 +198,7 @@
 
     // --- STATE ---
     let editingBundleName = null;
+    let expandedBundleName = null;
     let modalState = {
         selectedBundle: null,
         itemName: ''
@@ -365,15 +366,23 @@
     function renderBundleView(name, rawBundleData) {
         const { items: itemsArr, color } = normalizeBundle(rawBundleData);
         const div = document.createElement("div");
-        div.className = "bundle-view-item bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md overflow-hidden flex items-center gap-2";
+        div.className = "bundle-view-item bg-white dark:bg-gray-800 rounded-lg shadow-md flex flex-col transition-all";
         div.style.borderLeft = `5px solid ${color}`;
         div.draggable = true;
         div.dataset.bundleName = name;
+        
+        const mainContent = document.createElement("div");
+        mainContent.className = "flex items-center gap-2 p-4 cursor-pointer";
+        const isExpanded = expandedBundleName === name;
+        mainContent.onclick = () => {
+            expandedBundleName = isExpanded ? null : name;
+            renderBundles();
+        };
+        
         const handle = document.createElement('div');
         handle.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5 text-gray-400 cursor-grab"><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg>`;
         handle.className = "flex-shrink-0";
-        const content = document.createElement("div");
-        content.className = "flex-grow flex justify-between items-start gap-4 min-w-0";
+        
         const info = document.createElement("div");
         info.className = "flex-grow min-w-0";
         const title = document.createElement("h3");
@@ -384,22 +393,39 @@
         itemsList.title = itemsArr.join(", ");
         itemsList.className = "text-sm text-gray-600 dark:text-gray-400 mt-1 truncate";
         info.append(title, itemsList);
-        const actions = document.createElement("div");
-        actions.className = "flex-shrink-0 flex gap-2";
-        const addIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5"><path d="M11 12H3"/><path d="M16 6H3"/><path d="M16 12H3"/><path d="M16 18H3"/><path d="M18 9v6m3-3h-6"/></svg>`;
-        const editIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>`;
-        const archiveIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>`;
+
+        const expandIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5 transition-transform ${isExpanded ? 'rotate-180' : ''}"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+        const expandBtn = createButton(expandIconSVG, "Actions", "ml-auto text-gray-400 hover:text-gray-700 dark:hover:text-gray-200", () => {});
         
-        const addBtn = createButton(addIconSVG, "Add items to list", "hover:text-green-500", () => addBundleToList(name));
-        const editBtn = createButton(editIconSVG, "Edit", "hover:text-blue-500", () => {
-            editingBundleName = name; renderBundles();
-        });
-        const archiveBtn = createButton(archiveIconSVG, "Archive", "hover:text-yellow-500", () => archiveBundle(name));
-        
-        actions.append(addBtn, editBtn, archiveBtn);
-        content.append(info, actions);
-        div.append(handle, content);
+        mainContent.append(handle, info, expandBtn);
+        div.append(mainContent);
+
+        if (isExpanded) {
+            const actionsContainer = document.createElement('div');
+            actionsContainer.className = "p-4 pt-2 flex flex-col sm:flex-row gap-2";
+            
+            const addIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5"><path d="M11 12H3"/><path d="M16 6H3"/><path d="M16 12H3"/><path d="M16 18H3"/><path d="M18 9v6m3-3h-6"/></svg>`;
+            const editIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>`;
+            const archiveIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>`;
+
+            const addBtn = createActionButton(addIconSVG, 'Add to List', 'bg-green-500 hover:bg-green-600', () => addBundleToList(name));
+            const editBtn = createActionButton(editIconSVG, 'Edit', 'bg-amber-500 hover:bg-amber-600', () => { editingBundleName = name; expandedBundleName = null; renderBundles(); });
+            const archiveBtn = createActionButton(archiveIconSVG, 'Archive', 'bg-gray-500 hover:bg-gray-600', () => { expandedBundleName = null; archiveBundle(name); });
+
+            actionsContainer.append(addBtn, editBtn, archiveBtn);
+            div.append(actionsContainer);
+        }
+
         bundleListEl.append(div);
+    }
+    
+    /** Helper function to create the styled action buttons with icons */
+    function createActionButton(svg, text, colorClasses, onClick) {
+        const btn = document.createElement('button');
+        btn.className = `w-full sm:w-auto flex-grow text-white font-bold py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2 ${colorClasses}`;
+        btn.innerHTML = `${svg}<span>${text}</span>`;
+        btn.onclick = onClick;
+        return btn;
     }
     
     /** Renders a single archived bundle's view. */
@@ -1064,4 +1090,3 @@
   </script>
 </body>
 </html>
-
