@@ -1,0 +1,1067 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Packing List</title>
+  
+  <!-- Tailwind CSS for styling -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap"
+    rel="stylesheet"
+  />
+  
+  <style>
+    /* A little custom CSS to complement Tailwind */
+    body {
+      font-family: "Inter", system-ui, sans-serif;
+    }
+    /* Style for checked list items */
+    .done-item span {
+        text-decoration: line-through;
+        color: #9ca3af; /* gray-400 */
+    }
+    /* Style for the bundle being dragged */
+    .dragging {
+        opacity: 0.5;
+        background: #e0f2fe; /* light blue */
+    }
+    /* Style for the details marker */
+    summary::marker {
+        color: #9ca3af;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 dark:bg-gray-900 text-slate-800 dark:text-slate-200 transition-colors duration-300">
+
+  <main class="max-w-2xl mx-auto p-4 md:p-8">
+
+    <!-- Add Item Button (triggers modal) -->
+    <div class="mb-4">
+        <button id="open-add-item-modal-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors shadow">
+            Add New Item...
+        </button>
+    </div>
+    
+    <!-- Packing List -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md">
+        <ul id="packing-list" class="divide-y divide-gray-200 dark:divide-gray-700">
+            <!-- List items will be rendered here -->
+        </ul>
+    </div>
+    <div class="mt-4 flex justify-end items-center gap-4">
+      <button id="clear-completed-btn" class="text-sm text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition-colors">
+        Clear Completed
+      </button>
+      <button id="clear-all-btn" class="text-sm border border-gray-500 text-gray-500 hover:bg-gray-500 hover:text-white rounded-lg px-3 py-1 font-medium transition-colors">
+        Clear All Items
+      </button>
+    </div>
+
+    <!-- Bundles Section -->
+    <section class="mt-12">
+      <h3 class="text-2xl font-bold text-slate-900 dark:text-white mb-4">Quickly add bundles of items to your list</h3>
+
+      <!-- List of existing bundles (Drag and Drop enabled) -->
+      <div id="bundle-list" class="space-y-4"></div>
+
+      <!-- Archived Bundles Section (Collapsible) -->
+      <div id="archived-section" class="mt-6 hidden">
+        <details class="bg-gray-200 dark:bg-gray-800 rounded-lg">
+            <summary class="p-4 cursor-pointer font-semibold text-slate-800 dark:text-slate-200">
+                Archived Bundles
+            </summary>
+            <div id="archived-bundle-list" class="p-4 border-t border-gray-300 dark:border-gray-700 space-y-3">
+                <!-- Archived bundles will be rendered here -->
+            </div>
+        </details>
+      </div>
+
+      <!-- Add New Bundle Form -->
+      <div class="mt-8 p-4 bg-gray-200 dark:bg-gray-800 rounded-lg">
+        <h3 class="text-lg font-semibold mb-2 text-slate-900 dark:text-white">Create New Bundle</h3>
+        <form id="add-bundle-form" class="flex flex-col gap-3">
+          <input id="bundle-name" placeholder="Bundle name, e.g., Beach Trip" class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+          <textarea id="bundle-items" placeholder="Enter items, separated by commas or new lines..." class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" rows="3" required></textarea>
+          <div id="new-bundle-color-picker" class="flex flex-wrap gap-2"></div>
+          <button class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg self-start transition-colors">
+            Create Bundle
+          </button>
+        </form>
+      </div>
+
+      <!-- Import/Export Section -->
+      <div class="mt-8 p-4 bg-gray-200 dark:bg-gray-800 rounded-lg">
+        <h3 class="text-lg font-semibold mb-2 text-slate-900 dark:text-white">Manage Data</h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Save a backup of your list or import an existing one.</p>
+        <div class="flex gap-4">
+            <button id="export-btn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg">Export</button>
+            <button id="import-btn" class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg">Import</button>
+            <input type="file" id="import-file-input" class="hidden" accept=".json">
+        </div>
+      </div>
+    </section>
+
+    <footer class="mt-12 flex justify-center items-center gap-4">
+      <div id="status" class="px-3 py-1 rounded-full text-sm font-medium bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+        Connecting…
+      </div>
+       <p id="share-info" class="text-xs text-gray-500 bg-gray-200 dark:bg-gray-700 px-2 py-1 rounded-md hidden">To collaborate, share this page's URL!</p>
+    </footer>
+
+  </main>
+
+  <!-- Add Item Modal -->
+  <div id="add-item-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+    <div id="modal-content" class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-6">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-2xl font-bold text-slate-900 dark:text-white">Add New Item</h2>
+            <button id="close-modal-btn" class="text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 text-2xl">&times;</button>
+        </div>
+        <form id="modal-add-form">
+            <input id="modal-item-name" class="w-full bg-slate-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="New item name..." required />
+            
+            <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Add to which bundle?</p>
+            <div id="modal-bundle-pills" class="flex flex-wrap gap-2 mb-6">
+                <!-- Bundle pills will be rendered here -->
+            </div>
+
+            <div class="flex justify-end gap-3">
+                <button id="modal-cancel-btn" type="button" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-slate-800 dark:text-slate-200 font-bold py-2 px-4 rounded-lg">Cancel</button>
+                <button id="modal-add-btn" type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg opacity-50 cursor-not-allowed" disabled>Add Item</button>
+            </div>
+        </form>
+    </div>
+  </div>
+
+  <!-- Import Confirmation Modal -->
+  <div id="import-confirm-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-sm p-6">
+        <h2 class="text-xl font-bold text-slate-900 dark:text-white mb-4">Confirm Import</h2>
+        <p class="text-gray-600 dark:text-gray-400 mb-6">Importing a new list will overwrite all of your current items and bundles. Are you sure you want to continue?</p>
+        <div class="flex justify-end gap-3">
+            <button id="import-cancel-btn" type="button" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-slate-800 dark:text-slate-200 font-bold py-2 px-4 rounded-lg">Cancel</button>
+            <button id="import-confirm-btn" type="button" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Yes, Overwrite</button>
+        </div>
+    </div>
+  </div>
+
+
+  <script type="module">
+    import * as Y from "https://jspm.dev/yjs";
+    import { WebsocketProvider } from "https://jspm.dev/y-websocket";
+
+    // --- CONFIGURATION ---
+    const SERVER_URL = "wss://packing-list-realtime.fly.dev";
+    
+    /**
+     * Gets the room name from the URL hash.
+     * If no hash is present, it generates a new random one and updates the URL.
+     */
+    function getRoomNameFromUrl() {
+      if (window.location.hash) {
+        // Use the existing hash, removing the leading '#'
+        return window.location.hash.substring(1);
+      } else {
+        // No hash found, so generate a new room name
+        const newRoom = 'list-' + crypto.randomUUID().split('-')[0];
+        // Set the hash in the URL, which also updates the browser history
+        window.location.hash = newRoom;
+        return newRoom;
+      }
+    }
+
+    const ROOM_NAME = getRoomNameFromUrl();
+
+    const BUNDLE_COLORS = [
+        { name: 'Gray', hex: '#6b7280' }, { name: 'Red', hex: '#ef4444' },
+        { name: 'Orange', hex: '#f97316' }, { name: 'Amber', hex: '#f59e0b' },
+        { name: 'Green', hex: '#22c55e' }, { name: 'Blue', hex: '#3b82f6' },
+        { name: 'Indigo', hex: '#6366f1' }, { name: 'Purple', hex: '#8b5cf6' },
+        { name: 'Pink', hex: '#ec4899' }
+    ];
+
+    // --- YJS SETUP ---
+    const doc = new Y.Doc();
+    const provider = new WebsocketProvider(SERVER_URL, ROOM_NAME, doc);
+    
+    // Shared data types
+    const items = doc.getArray("items");
+    const bundles = doc.getMap("bundles");
+    const bundleOrder = doc.getArray("bundleOrder");
+    const archivedBundles = doc.getArray("archivedBundles");
+
+    // --- STATE ---
+    let editingBundleName = null;
+    let modalState = {
+        selectedBundle: null,
+        itemName: ''
+    };
+    let isClearAllPending = false;
+    let clearAllTimeout = null;
+    let pendingImportData = null;
+    let itemsPendingDeletion = new Set();
+    const deletionTimeouts = new Map();
+    let bundlesPendingPermanentDeletion = new Set();
+    const bundleDeletionTimeouts = new Map();
+
+    // --- DOM ELEMENTS ---
+    const statusEl = document.getElementById("status");
+    const shareInfoEl = document.getElementById("share-info");
+    const packingListEl = document.getElementById("packing-list");
+    const clearCompletedBtn = document.getElementById("clear-completed-btn");
+    const clearAllBtn = document.getElementById("clear-all-btn");
+    const bundleListEl = document.getElementById("bundle-list");
+    const archivedSectionEl = document.getElementById("archived-section");
+    const archivedBundleListEl = document.getElementById("archived-bundle-list");
+    const addBundleForm = document.getElementById("add-bundle-form");
+    const bundleNameInput = document.getElementById("bundle-name");
+    const bundleItemsInput = document.getElementById("bundle-items");
+    const newBundleColorPickerEl = document.getElementById("new-bundle-color-picker");
+    // Modal elements
+    const openModalBtn = document.getElementById("open-add-item-modal-btn");
+    const addItemModal = document.getElementById("add-item-modal");
+    const closeModalBtn = document.getElementById("close-modal-btn");
+    const modalCancelBtn = document.getElementById("modal-cancel-btn");
+    const modalAddForm = document.getElementById("modal-add-form");
+    const modalItemNameInput = document.getElementById("modal-item-name");
+    const modalBundlePillsEl = document.getElementById("modal-bundle-pills");
+    const modalAddBtn = document.getElementById("modal-add-btn");
+    // Import/Export elements
+    const exportBtn = document.getElementById("export-btn");
+    const importBtn = document.getElementById("import-btn");
+    const importFileInput = document.getElementById("import-file-input");
+    const importConfirmModal = document.getElementById("import-confirm-modal");
+    const importCancelBtn = document.getElementById("import-cancel-btn");
+    const importConfirmBtn = document.getElementById("import-confirm-btn");
+
+
+    // --- DATA MIGRATION ---
+    provider.on('sync', synced => {
+      if (synced) {
+        shareInfoEl.classList.remove('hidden'); // Show share info on successful sync
+        if (bundleOrder.length === 0 && bundles.size > 0 && archivedBundles.length === 0) {
+          doc.transact(() => {
+            const keys = Array.from(bundles.keys());
+            bundleOrder.push(keys);
+          });
+        }
+      }
+    });
+
+    // --- RENDERING LOGIC ---
+
+    /** Renders the main packing list. */
+    function renderPackingList() {
+      packingListEl.innerHTML = "";
+      if (items.length === 0) {
+        packingListEl.innerHTML = `<li class="text-center text-gray-500 py-4">Your list is empty. Add a bundle to get started!</li>`;
+        return;
+      }
+      items.toArray().forEach((item) => {
+        const li = document.createElement("li");
+        li.className = `flex items-center gap-3 p-4 transition-all cursor-pointer ${item.done ? 'done-item' : ''}`;
+        if (item.bundleColor) {
+            li.style.borderLeft = `5px solid ${item.bundleColor}`;
+            li.style.paddingLeft = '11px';
+        }
+        li.onclick = () => toggleItem(item.id);
+        
+        const span = document.createElement("span");
+        span.textContent = item.text;
+        span.className = "flex-grow";
+
+        const removeBtn = document.createElement('button');
+        const isPending = itemsPendingDeletion.has(item.id);
+
+        if (isPending) {
+            const trashIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>`;
+            removeBtn.innerHTML = trashIconSVG;
+            removeBtn.title = "Confirm removal";
+            removeBtn.className = 'transition-colors text-lg text-red-500 hover:text-red-600';
+            removeBtn.onclick = (e) => {
+                e.stopPropagation();
+                if (deletionTimeouts.has(item.id)) {
+                    clearTimeout(deletionTimeouts.get(item.id));
+                    deletionTimeouts.delete(item.id);
+                }
+                itemsPendingDeletion.delete(item.id);
+                removeItem(item.id);
+            };
+        } else {
+            removeBtn.innerHTML = '&times;';
+            removeBtn.title = "Remove item";
+            removeBtn.className = 'transition-colors text-lg text-gray-400 hover:text-red-500 font-bold text-2xl';
+            removeBtn.onclick = (e) => {
+                e.stopPropagation();
+                itemsPendingDeletion.add(item.id);
+                
+                const timeoutId = setTimeout(() => {
+                    itemsPendingDeletion.delete(item.id);
+                    deletionTimeouts.delete(item.id);
+                    renderPackingList(); // Revert button if not confirmed
+                }, 3000);
+                deletionTimeouts.set(item.id, timeoutId);
+                
+                renderPackingList(); // Show confirmation button
+            };
+        }
+        
+        li.append(span, removeBtn);
+        packingListEl.append(li);
+      });
+    }
+
+    /** Renders the list of active bundles based on the `bundleOrder` array. */
+    function renderBundles() {
+        bundleListEl.innerHTML = "";
+        bundleOrder.toArray().forEach(name => {
+            const bundleData = bundles.get(name);
+            if (!bundleData) return;
+            if (editingBundleName === name) {
+                renderBundleEditForm(name, bundleData);
+            } else {
+                renderBundleView(name, bundleData);
+            }
+        });
+    }
+
+    /** Renders the list of archived bundles. */
+    function renderArchivedBundles() {
+        if (archivedBundles.length > 0) {
+            archivedSectionEl.classList.remove('hidden');
+        } else {
+            archivedSectionEl.classList.add('hidden');
+        }
+        archivedBundleListEl.innerHTML = "";
+        archivedBundles.toArray().forEach(name => {
+            const bundleData = bundles.get(name);
+            if (!bundleData) return;
+            renderArchivedBundleView(name, bundleData);
+        });
+    }
+    
+    /** Normalizes bundle data to handle both old and new formats. */
+    function normalizeBundle(bundleData) {
+        if (bundleData instanceof Y.Array) {
+            return { items: bundleData.toArray(), color: BUNDLE_COLORS[0].hex };
+        }
+        if (bundleData && typeof bundleData.get === 'function') {
+            return {
+                items: bundleData.get('items')?.toArray() || [],
+                color: bundleData.get('color') || BUNDLE_COLORS[0].hex
+            };
+        }
+        console.warn("Could not normalize bundle data:", bundleData);
+        return { items: [], color: BUNDLE_COLORS[0].hex };
+    }
+
+    /** Renders a single draggable, active bundle in its view state. */
+    function renderBundleView(name, rawBundleData) {
+        const { items: itemsArr, color } = normalizeBundle(rawBundleData);
+        const div = document.createElement("div");
+        div.className = "bundle-view-item bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md overflow-hidden flex items-center gap-2";
+        div.style.borderLeft = `5px solid ${color}`;
+        div.draggable = true;
+        div.dataset.bundleName = name;
+        const handle = document.createElement('div');
+        handle.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5 text-gray-400 cursor-grab"><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg>`;
+        handle.className = "flex-shrink-0";
+        const content = document.createElement("div");
+        content.className = "flex-grow flex justify-between items-start gap-4 min-w-0";
+        const info = document.createElement("div");
+        info.className = "flex-grow min-w-0";
+        const title = document.createElement("h3");
+        title.textContent = name;
+        title.className = "font-bold text-lg text-slate-900 dark:text-white";
+        const itemsList = document.createElement("p");
+        itemsList.textContent = itemsArr.join(", ");
+        itemsList.title = itemsArr.join(", ");
+        itemsList.className = "text-sm text-gray-600 dark:text-gray-400 mt-1 truncate";
+        info.append(title, itemsList);
+        const actions = document.createElement("div");
+        actions.className = "flex-shrink-0 flex gap-2";
+        const addIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5"><path d="M11 12H3"/><path d="M16 6H3"/><path d="M16 12H3"/><path d="M16 18H3"/><path d="M18 9v6m3-3h-6"/></svg>`;
+        const editIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>`;
+        const archiveIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>`;
+        
+        const addBtn = createButton(addIconSVG, "Add items to list", "hover:text-green-500", () => addBundleToList(name));
+        const editBtn = createButton(editIconSVG, "Edit", "hover:text-blue-500", () => {
+            editingBundleName = name; renderBundles();
+        });
+        const archiveBtn = createButton(archiveIconSVG, "Archive", "hover:text-yellow-500", () => archiveBundle(name));
+        
+        actions.append(addBtn, editBtn, archiveBtn);
+        content.append(info, actions);
+        div.append(handle, content);
+        bundleListEl.append(div);
+    }
+    
+    /** Renders a single archived bundle's view. */
+    function renderArchivedBundleView(name, rawBundleData) {
+        const { items: itemsArr, color } = normalizeBundle(rawBundleData);
+        const div = document.createElement("div");
+        div.className = "bg-white dark:bg-gray-900/50 p-3 rounded-md flex items-center justify-between gap-4";
+        
+        const info = document.createElement("div");
+        info.className = "flex-grow min-w-0";
+        const title = document.createElement("h3");
+        title.textContent = name;
+        title.className = "font-semibold text-slate-900 dark:text-white";
+        info.append(title);
+        
+        const actions = document.createElement("div");
+        actions.className = "flex-shrink-0 flex gap-3";
+        
+        const unarchiveIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="12" y1="16" x2="12" y2="10"/><polyline points="15 13 12 10 9 13"/></svg>`;
+        const unarchiveBtn = createButton(unarchiveIconSVG, "Unarchive", "hover:text-green-500", () => unarchiveBundle(name));
+
+        // Two-step permanent delete button
+        const deleteBtn = document.createElement('button');
+        const isPending = bundlesPendingPermanentDeletion.has(name);
+
+        if (isPending) {
+            const trashIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>`;
+            deleteBtn.innerHTML = trashIconSVG;
+            deleteBtn.title = "Confirm permanent delete";
+            deleteBtn.className = 'transition-colors text-lg text-red-500 hover:text-red-600';
+            deleteBtn.onclick = () => {
+                if (bundleDeletionTimeouts.has(name)) {
+                    clearTimeout(bundleDeletionTimeouts.get(name));
+                    bundleDeletionTimeouts.delete(name);
+                }
+                bundlesPendingPermanentDeletion.delete(name);
+                deleteBundlePermanently(name);
+            };
+        } else {
+            const deleteIconSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-5 w-5"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`;
+            deleteBtn.innerHTML = deleteIconSVG;
+            deleteBtn.title = "Delete Permanently";
+            deleteBtn.className = 'transition-colors text-lg text-gray-400 hover:text-red-500';
+            deleteBtn.onclick = () => {
+                bundlesPendingPermanentDeletion.add(name);
+                const timeoutId = setTimeout(() => {
+                    bundlesPendingPermanentDeletion.delete(name);
+                    bundleDeletionTimeouts.delete(name);
+                    renderArchivedBundles();
+                }, 3000);
+                bundleDeletionTimeouts.set(name, timeoutId);
+                renderArchivedBundles();
+            };
+        }
+
+        actions.append(unarchiveBtn, deleteBtn);
+        div.append(info, actions);
+        archivedBundleListEl.append(div);
+    }
+    
+    /** Renders a bundle in its editing state. */
+    function renderBundleEditForm(name, rawBundleData) {
+        const { items: itemsArr, color } = normalizeBundle(rawBundleData);
+        const form = document.createElement("form");
+        form.className = "bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg border border-yellow-300 dark:border-yellow-700";
+        const titleInput = document.createElement("input");
+        titleInput.value = name;
+        titleInput.className = "w-full font-bold text-lg bg-transparent focus:outline-none mb-2 border-b-2 border-yellow-400";
+        const itemsTextarea = document.createElement("textarea");
+        itemsTextarea.value = itemsArr.join("\n");
+        itemsTextarea.rows = Math.max(3, itemsArr.length);
+        itemsTextarea.className = "w-full text-sm bg-transparent focus:outline-none mt-1";
+        const colorPickerContainer = document.createElement('div');
+        colorPickerContainer.className = "flex flex-wrap gap-2 mt-4";
+        renderColorPicker(colorPickerContainer, color);
+        const btnGroup = document.createElement("div");
+        btnGroup.className = "flex gap-2 mt-4";
+        const saveBtn = document.createElement("button");
+        saveBtn.textContent = "Save";
+        saveBtn.type = "submit";
+        saveBtn.className = "bg-green-600 hover:bg-green-700 text-white font-bold py-1 px-3 rounded-lg text-sm";
+        const cancelBtn = createButton("Cancel", "Cancel edit", "bg-gray-500 hover:bg-gray-600 text-white font-bold py-1 px-3 rounded-lg text-sm", () => { editingBundleName = null; renderBundles(); });
+        cancelBtn.type = "button";
+        form.onsubmit = (e) => {
+            e.preventDefault();
+            const newName = titleInput.value.trim();
+            const newItems = itemsTextarea.value.split(/,|\n/).map(s => s.trim()).filter(Boolean);
+            const newColor = colorPickerContainer.dataset.selectedColor;
+            if (newName && newItems.length > 0) {
+                updateBundle(name, newName, newItems, newColor);
+                editingBundleName = null;
+                renderBundles();
+            }
+        };
+        btnGroup.append(saveBtn, cancelBtn);
+        form.append(titleInput, itemsTextarea, colorPickerContainer, btnGroup);
+        bundleListEl.append(form);
+    }
+
+    /** Renders color swatches. */
+    function renderColorPicker(container, selectedColor) {
+        container.innerHTML = '';
+        container.dataset.selectedColor = selectedColor;
+        BUNDLE_COLORS.forEach(color => {
+            const swatch = document.createElement('button');
+            swatch.type = 'button';
+            swatch.className = 'w-6 h-6 rounded-full transition-transform transform hover:scale-110';
+            swatch.style.backgroundColor = color.hex;
+            swatch.title = color.name;
+            if (color.hex === selectedColor) {
+                swatch.classList.add('ring-2', 'ring-offset-2', 'ring-blue-500', 'dark:ring-offset-gray-800');
+            }
+            swatch.onclick = () => renderColorPicker(container, color.hex);
+            container.append(swatch);
+        });
+    }
+
+    /** Helper to create action buttons. */
+    function createButton(html, title, className, onClick) {
+        const btn = document.createElement("button");
+        btn.innerHTML = html;
+        btn.title = title;
+        btn.className = `transition-colors text-lg ${className}`;
+        btn.onclick = onClick;
+        return btn;
+    }
+
+    // --- DATA MUTATION LOGIC ---
+
+    /** Adds a new item to the packing list without a bundle association. */
+    function addNewItem(text) {
+        if (!text) return;
+        const currentItemTexts = new Set(items.toArray().map(item => item.text));
+        if (currentItemTexts.has(text)) return; // Avoid duplicates
+
+        doc.transact(() => {
+            const firstDoneIndex = items.toArray().findIndex(it => it.done);
+            const insertionIndex = firstDoneIndex === -1 ? items.length : firstDoneIndex;
+            items.insert(insertionIndex, [{ id: crypto.randomUUID(), text, done: false, bundleColor: null }]);
+        });
+    }
+    
+    /** Adds an item to a bundle and to the packing list simultaneously. */
+    function addItemToBundleAndList(bundleName, itemName) {
+        if (!bundleName || !itemName) return;
+
+        doc.transact(() => {
+            // Part 1: Add item to the bundle if it doesn't exist
+            const bundleData = bundles.get(bundleName);
+            if (!bundleData) return;
+            
+            const { items: bundleItemsArr, color } = normalizeBundle(bundleData);
+            const yBundleItems = bundleData.get('items');
+            
+            if (yBundleItems && !bundleItemsArr.includes(itemName)) {
+                yBundleItems.push([itemName]);
+            }
+
+            // Part 2: Add item to the main list if it doesn't exist
+            const currentItemTexts = new Set(items.toArray().map(item => item.text));
+            if (!currentItemTexts.has(itemName)) {
+                const newItem = { id: crypto.randomUUID(), text: itemName, done: false, bundleColor: color };
+                const firstDoneIndex = items.toArray().findIndex(it => it.done);
+                const insertionIndex = firstDoneIndex === -1 ? items.length : firstDoneIndex;
+                items.insert(insertionIndex, [newItem]);
+            }
+        });
+    }
+
+
+    /** Toggles the 'done' state of an item and moves it. */
+    function toggleItem(id) {
+        doc.transact(() => {
+            const arr = items.toArray();
+            const index = arr.findIndex(item => item.id === id);
+            if (index === -1) return;
+            const item = arr[index];
+            items.delete(index, 1);
+            if (!item.done) {
+                const firstDoneIndex = items.toArray().findIndex(it => it.done);
+                const insertionIndex = firstDoneIndex === -1 ? items.length : firstDoneIndex;
+                items.insert(insertionIndex, [{ ...item, done: true }]);
+            } else {
+                items.insert(0, [{ ...item, done: false }]);
+            }
+        });
+    }
+
+    /** Removes an item from the list. */
+    function removeItem(id) {
+        doc.transact(() => {
+            const index = items.toArray().findIndex(item => item.id === id);
+            if (index > -1) { items.delete(index, 1); }
+        });
+    }
+
+    /** Removes all 'done' items. */
+    function clearCompleted() {
+        doc.transact(() => {
+            let i = items.length;
+            while (i--) {
+                if (items.get(i).done) { items.delete(i, 1); }
+            }
+        });
+    }
+
+    /** Removes all items from the packing list. */
+    function clearAllItems() {
+        doc.transact(() => {
+            if (items.length > 0) {
+                items.delete(0, items.length);
+            }
+        });
+    }
+    
+    /** Adds all items from a bundle to the main list. */
+    function addBundleToList(bundleName) {
+        const rawBundleData = bundles.get(bundleName);
+        if (!rawBundleData) return;
+        const { items: itemsToAdd, color } = normalizeBundle(rawBundleData);
+        doc.transact(() => {
+            const currentItemTexts = new Set(items.toArray().map(item => item.text));
+            const newItems = itemsToAdd
+                .filter(text => !currentItemTexts.has(text))
+                .map(text => ({ id: crypto.randomUUID(), text, done: false, bundleColor: color }));
+            if (newItems.length > 0) {
+              const firstDoneIndex = items.toArray().findIndex(it => it.done);
+              const insertionIndex = firstDoneIndex === -1 ? items.length : firstDoneIndex;
+              items.insert(insertionIndex, newItems);
+            }
+        });
+    }
+
+    /** Creates a new bundle. */
+    function createNewBundle(name, itemsArr, color) {
+        if (!name || itemsArr.length === 0 || bundles.has(name)) return;
+        doc.transact(() => {
+            const newBundle = new Y.Map();
+            const yItems = new Y.Array();
+            yItems.insert(0, itemsArr);
+            newBundle.set('items', yItems);
+            newBundle.set('color', color);
+            bundles.set(name, newBundle);
+            bundleOrder.push([name]);
+        });
+    }
+
+    /** Archives a bundle. */
+    function archiveBundle(name) {
+        doc.transact(() => {
+            const index = bundleOrder.toArray().indexOf(name);
+            if (index > -1) {
+                bundleOrder.delete(index, 1);
+                archivedBundles.push([name]);
+            }
+        });
+    }
+
+    /** Unarchives a bundle. */
+    function unarchiveBundle(name) {
+        doc.transact(() => {
+            const index = archivedBundles.toArray().indexOf(name);
+            if (index > -1) {
+                archivedBundles.delete(index, 1);
+                bundleOrder.push([name]);
+            }
+        });
+    }
+
+    /** Deletes a bundle permanently from the archive. */
+    function deleteBundlePermanently(name) {
+        doc.transact(() => {
+            bundles.delete(name);
+            const index = archivedBundles.toArray().indexOf(name);
+            if (index > -1) {
+                archivedBundles.delete(index, 1);
+            }
+        });
+    }
+    
+    /** Updates a bundle. */
+    function updateBundle(oldName, newName, newItems, newColor) {
+        doc.transact(() => {
+            const updatedBundle = new Y.Map();
+            const yItems = new Y.Array();
+            yItems.insert(0, newItems);
+            updatedBundle.set('items', yItems);
+            updatedBundle.set('color', newColor);
+            if (oldName !== newName) {
+                bundles.delete(oldName);
+                const index = bundleOrder.toArray().indexOf(oldName);
+                if (index > -1) {
+                    bundleOrder.delete(index, 1);
+                    bundleOrder.insert(index, [newName]);
+                }
+            }
+            bundles.set(newName, updatedBundle);
+        });
+    }
+    
+    // --- MODAL LOGIC ---
+    function openAddItemModal() {
+        modalState = { selectedBundle: null, itemName: '' };
+        modalItemNameInput.value = '';
+        updateModalAddButton();
+        populateModalPills();
+        addItemModal.classList.remove('hidden');
+        modalItemNameInput.focus();
+    }
+
+    function closeAddItemModal() {
+        addItemModal.classList.add('hidden');
+    }
+
+    function populateModalPills() {
+        modalBundlePillsEl.innerHTML = '';
+        
+        // Add a pill for each bundle
+        bundleOrder.toArray().forEach(name => {
+            const bundleData = bundles.get(name);
+            if (!bundleData) return;
+            const { color } = normalizeBundle(bundleData);
+            const pill = createPill(name, name, color);
+            modalBundlePillsEl.append(pill);
+        });
+
+        // Add "Just this once" option at the end, with inverted styling
+        const oneOffPill = createPill('Just this once', 'one-off', BUNDLE_COLORS[0].hex, true);
+        modalBundlePillsEl.append(oneOffPill);
+    }
+
+    function createPill(name, dataName, color, inverted = false) {
+        const pill = document.createElement('button');
+        pill.type = 'button';
+        pill.textContent = name;
+        pill.dataset.bundleName = dataName;
+        pill.className = 'modal-pill px-3 py-1 text-sm font-medium rounded-full border transition-all';
+        pill.style.borderColor = color;
+
+        if (inverted) {
+            pill.style.backgroundColor = color;
+            pill.style.color = 'white';
+        } else {
+            pill.style.color = color;
+            pill.style.backgroundColor = 'transparent';
+        }
+        return pill;
+    }
+
+    function updateModalAddButton() {
+        const isEnabled = modalState.itemName.length > 0 && modalState.selectedBundle !== null;
+        modalAddBtn.disabled = !isEnabled;
+        if (isEnabled) {
+            modalAddBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        } else {
+            modalAddBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+    }
+
+    // --- IMPORT/EXPORT LOGIC ---
+    
+    /** Exports the current list data to a JSON file. */
+    function exportData() {
+        const exportObj = {
+            bundleOrder: bundleOrder.toArray(),
+            archivedBundles: archivedBundles.toArray(),
+            bundles: {},
+            items: items.toArray()
+        };
+
+        // Convert Y.Map of bundles to a plain JS object
+        for (const [name, yBundle] of bundles.entries()) {
+            const { items, color } = normalizeBundle(yBundle);
+            exportObj.bundles[name] = { items, color };
+        }
+
+        const dataStr = JSON.stringify(exportObj, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(dataBlob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `packing-list-${ROOM_NAME}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    /** Handles the file selection for import. */
+    function handleFileSelect(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const data = JSON.parse(e.target.result);
+                // Basic validation
+                if (data.bundleOrder && data.bundles && data.items) {
+                    pendingImportData = data;
+                    importConfirmModal.classList.remove('hidden');
+                } else {
+                    alert('Invalid file format.');
+                }
+            } catch (error) {
+                alert('Could not parse file. Make sure it is a valid JSON export.');
+                console.error("Import error:", error);
+            }
+        };
+        reader.readAsText(file);
+        
+        // Reset the input so the 'change' event fires even if the same file is selected again
+        event.target.value = '';
+    }
+
+    /** Performs the actual data import after confirmation. */
+    function performImport(data) {
+        doc.transact(() => {
+            // Clear existing data
+            items.delete(0, items.length);
+            bundleOrder.delete(0, bundleOrder.length);
+            archivedBundles.delete(0, archivedBundles.length);
+            bundles.forEach((_, key) => bundles.delete(key));
+
+            // Import bundles
+            if (data.bundles) {
+                for (const name in data.bundles) {
+                    const bundleData = data.bundles[name];
+                    const newBundle = new Y.Map();
+                    const yItems = new Y.Array();
+                    yItems.push(bundleData.items || []);
+                    newBundle.set('items', yItems);
+                    newBundle.set('color', bundleData.color || BUNDLE_COLORS[0].hex);
+                    bundles.set(name, newBundle);
+                }
+            }
+
+            // Import bundle order
+            if (data.bundleOrder) {
+                bundleOrder.push(data.bundleOrder);
+            }
+
+            // Import archived bundles (optional, for backwards compatibility)
+            if (data.archivedBundles) {
+                archivedBundles.push(data.archivedBundles);
+            }
+
+            // Import items
+            if (data.items) {
+                items.push(data.items);
+            }
+        });
+        
+        closeImportModal();
+    }
+
+    function closeImportModal() {
+        pendingImportData = null;
+        importConfirmModal.classList.add('hidden');
+    }
+
+    // --- DRAG AND DROP LOGIC ---
+    bundleListEl.addEventListener('dragstart', e => {
+        const draggedEl = e.target.closest('.bundle-view-item');
+        if (draggedEl) {
+            draggedEl.classList.add('dragging');
+        }
+    });
+    bundleListEl.addEventListener('dragend', e => {
+        const draggedEl = e.target.closest('.bundle-view-item');
+        if (draggedEl) {
+            draggedEl.classList.remove('dragging');
+        }
+    });
+    bundleListEl.addEventListener('dragover', e => {
+        e.preventDefault();
+        const draggingEl = bundleListEl.querySelector('.dragging');
+        const afterElement = getDragAfterElement(bundleListEl, e.clientY);
+        if (afterElement == null) {
+            bundleListEl.appendChild(draggingEl);
+        } else {
+            bundleListEl.insertBefore(draggingEl, afterElement);
+        }
+    });
+    bundleListEl.addEventListener('drop', e => {
+        e.preventDefault();
+        const draggedEl = bundleListEl.querySelector('.dragging');
+        if (!draggedEl) return;
+        const draggedName = draggedEl.dataset.bundleName;
+        const afterElement = getDragAfterElement(bundleListEl, e.clientY);
+        const afterName = afterElement ? afterElement.dataset.bundleName : null;
+        const oldIndex = bundleOrder.toArray().indexOf(draggedName);
+        if (oldIndex === -1) return;
+        doc.transact(() => {
+            bundleOrder.delete(oldIndex, 1);
+            const newIndex = afterName ? bundleOrder.toArray().indexOf(afterName) : bundleOrder.length;
+            bundleOrder.insert(newIndex, [draggedName]);
+        });
+    });
+    function getDragAfterElement(container, y) {
+        const draggableElements = [...container.querySelectorAll('.bundle-view-item:not(.dragging)')];
+        return draggableElements.reduce((closest, child) => {
+            const box = child.getBoundingClientRect();
+            const offset = y - box.top - box.height / 2;
+            if (offset < 0 && offset > closest.offset) {
+                return { offset: offset, element: child };
+            } else {
+                return closest;
+            }
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    // --- EVENT LISTENERS ---
+
+    /** Central function to update the status UI based on connection state. */
+    function updateStatusUI(status) {
+        let text = status;
+        let colorClasses = '';
+
+        switch (status) {
+            case 'connected':
+                text = 'Connected';
+                colorClasses = 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200';
+                break;
+            case 'disconnected':
+                text = 'Disconnected';
+                colorClasses = 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200';
+                break;
+            case 'offline':
+                text = 'Offline';
+                colorClasses = 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200';
+                break;
+            default: // Catches 'connecting' and any other states
+                text = 'Connecting…';
+                colorClasses = 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200';
+        }
+
+        statusEl.textContent = text;
+        statusEl.className = `px-3 py-1 rounded-full text-sm font-medium transition-colors ${colorClasses}`;
+    }
+
+    // Listen to the y-websocket provider's status
+    provider.on("status", e => {
+        // Only use the provider's status if the browser thinks it's online
+        if (navigator.onLine) {
+            updateStatusUI(e.status);
+        }
+    });
+
+    // Listen to browser online/offline events for faster feedback
+    window.addEventListener('offline', () => updateStatusUI('offline'));
+    window.addEventListener('online', () => updateStatusUI(provider.status || 'connecting'));
+    
+    // Set initial state
+    updateStatusUI(navigator.onLine ? provider.status || 'connecting' : 'offline');
+
+
+    addBundleForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        const name = bundleNameInput.value.trim();
+        const itemsArr = bundleItemsInput.value.split(/,|\n/).map(s => s.trim()).filter(Boolean);
+        const color = newBundleColorPickerEl.dataset.selectedColor;
+        createNewBundle(name, itemsArr, color);
+        addBundleForm.reset();
+        renderColorPicker(newBundleColorPickerEl, BUNDLE_COLORS[0].hex);
+    });
+
+    clearCompletedBtn.addEventListener("click", clearCompleted);
+
+    clearAllBtn.addEventListener("click", () => {
+        if (isClearAllPending) {
+            clearTimeout(clearAllTimeout);
+            clearAllItems();
+            
+            isClearAllPending = false;
+            clearAllBtn.className = "text-sm border border-gray-500 text-gray-500 hover:bg-gray-500 hover:text-white rounded-lg px-3 py-1 font-medium transition-colors";
+            clearAllBtn.textContent = "Clear All Items";
+
+        } else {
+            isClearAllPending = true;
+            clearAllBtn.className = "text-sm bg-gray-500 text-white hover:bg-gray-600 rounded-lg px-3 py-1 font-medium transition-colors";
+            clearAllBtn.textContent = "Are you sure? Click again";
+
+            clearAllTimeout = setTimeout(() => {
+                isClearAllPending = false;
+                clearAllBtn.className = "text-sm border border-gray-500 text-gray-500 hover:bg-gray-500 hover:text-white rounded-lg px-3 py-1 font-medium transition-colors";
+                clearAllBtn.textContent = "Clear All Items";
+            }, 3000);
+        }
+    });
+
+    // Modal listeners
+    openModalBtn.addEventListener('click', openAddItemModal);
+    closeModalBtn.addEventListener('click', closeAddItemModal);
+    modalCancelBtn.addEventListener('click', closeAddItemModal);
+    addItemModal.addEventListener('click', (e) => {
+        if (e.target === addItemModal) closeAddItemModal(); // Close on backdrop click
+    });
+
+    modalItemNameInput.addEventListener('input', (e) => {
+        modalState.itemName = e.target.value.trim();
+        updateModalAddButton();
+    });
+
+    modalBundlePillsEl.addEventListener('click', (e) => {
+        const selectedPill = e.target.closest('.modal-pill');
+        if (!selectedPill) return;
+
+        // Update state and apply selection ring
+        modalState.selectedBundle = selectedPill.dataset.bundleName;
+        document.querySelectorAll('.modal-pill').forEach(p => {
+            p.classList.remove('ring-2', 'ring-offset-2', 'ring-blue-500', 'dark:ring-offset-gray-800');
+        });
+        selectedPill.classList.add('ring-2', 'ring-offset-2', 'ring-blue-500', 'dark:ring-offset-gray-800');
+
+        updateModalAddButton();
+    });
+
+    modalAddForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        if (modalState.selectedBundle === 'one-off') {
+            addNewItem(modalState.itemName);
+        } else {
+            addItemToBundleAndList(modalState.selectedBundle, modalState.itemName);
+        }
+        closeAddItemModal();
+    });
+
+    // Import/Export listeners
+    exportBtn.addEventListener('click', exportData);
+    importBtn.addEventListener('click', () => importFileInput.click());
+    importFileInput.addEventListener('change', handleFileSelect);
+    importCancelBtn.addEventListener('click', closeImportModal);
+    importConfirmBtn.addEventListener('click', () => {
+        if (pendingImportData) {
+            performImport(pendingImportData);
+        }
+    });
+
+
+    // Yjs observers
+    items.observe(renderPackingList);
+    
+    function renderAllBundles() {
+        renderBundles();
+        renderArchivedBundles();
+        if (!addItemModal.classList.contains('hidden')) {
+            populateModalPills();
+        }
+    }
+
+    bundles.observe(renderAllBundles);
+    bundleOrder.observe(renderAllBundles);
+    archivedBundles.observe(renderAllBundles);
+
+    // Initial render
+    renderPackingList();
+    renderAllBundles();
+    renderColorPicker(newBundleColorPickerEl, BUNDLE_COLORS[0].hex);
+
+  </script>
+</body>
+</html>
+
