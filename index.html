@@ -497,7 +497,7 @@
         const itemsTextarea = document.createElement("textarea");
         itemsTextarea.value = itemsArr.join("\n");
         itemsTextarea.rows = Math.max(3, itemsArr.length);
-        itemsTextarea.className = "w-full text-base bg-transparent focus:outline-none mt-1";
+        itemsTextarea.className = "w-full text-lg bg-transparent focus:outline-none mt-1";
         const colorPickerContainer = document.createElement('div');
         colorPickerContainer.className = "flex flex-wrap gap-2 mt-4";
         renderColorPicker(colorPickerContainer, color);
@@ -1097,4 +1097,5 @@
   </script>
 </body>
 </html>
+
 
