@@ -497,7 +497,7 @@
         const itemsTextarea = document.createElement("textarea");
         itemsTextarea.value = itemsArr.join("\n");
         itemsTextarea.rows = Math.max(3, itemsArr.length);
-        itemsTextarea.className = "w-full text-sm bg-transparent focus:outline-none mt-1";
+        itemsTextarea.className = "w-full text-base bg-transparent focus:outline-none mt-1";
         const colorPickerContainer = document.createElement('div');
         colorPickerContainer.className = "flex flex-wrap gap-2 mt-4";
         renderColorPicker(colorPickerContainer, color);
@@ -523,6 +523,13 @@
         btnGroup.append(saveBtn, cancelBtn);
         form.append(titleInput, itemsTextarea, colorPickerContainer, btnGroup);
         bundleListEl.append(form);
+
+        // Add a newline to start typing on a new line, unless it's empty
+        if (itemsTextarea.value.length > 0 && !itemsTextarea.value.endsWith('\n')) {
+            itemsTextarea.value += '\n';
+        }
+        itemsTextarea.focus();
+        itemsTextarea.setSelectionRange(itemsTextarea.value.length, itemsTextarea.value.length);
     }
 
     /** Renders color swatches. */
@@ -1090,3 +1097,4 @@
   </script>
 </body>
 </html>
+
