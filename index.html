@@ -16,26 +16,46 @@
     rel="stylesheet"
   />
   
-  <style>
-    /* A little custom CSS to complement Tailwind */
-    body {
-      font-family: "Inter", system-ui, sans-serif;
-    }
-    /* Style for checked list items */
-    .done-item span {
-        text-decoration: line-through;
-        color: #9ca3af; /* gray-400 */
-    }
-    /* Style for the bundle being dragged */
-    .dragging {
-        opacity: 0.5;
-        background: #e0f2fe; /* light blue */
-    }
-    /* Style for the details marker */
-    summary::marker {
-        color: #9ca3af;
-    }
-  </style>
+    <style>
+        /* A little custom CSS to complement Tailwind */
+        body {
+            font-family: "Inter", system-ui, sans-serif;
+        }
+
+        /* Style for checked list items */
+        .done-item span {
+                text-decoration: line-through;
+                color: #9ca3af; /* gray-400 */
+        }
+
+        /* Style for the bundle being dragged */
+        .dragging {
+                opacity: 0.5;
+                background: #e0f2fe; /* light blue */
+        }
+
+        /* Style for the details marker */
+        summary::marker {
+                color: #9ca3af;
+        }
+
+        /* Subtle removal animation: fade out + collapse height so remaining items slide up */
+        #packing-list li {
+            overflow: hidden; /* allow collapsing */
+            transition: opacity 220ms ease, transform 220ms ease, max-height 220ms ease, margin 220ms ease, padding 220ms ease;
+            will-change: opacity, transform, max-height;
+        }
+
+        /* When we trigger removal, we'll set inline styles, but this class is a fallback */
+        .removing {
+            opacity: 0 !important;
+            transform: translateY(-8px) !important;
+            max-height: 0 !important;
+            margin: 0 !important;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+        }
+    </style>
 </head>
 <body class="bg-slate-100 dark:bg-gray-900 text-slate-800 dark:text-slate-200 transition-colors duration-300">
 
@@ -208,6 +228,8 @@
     let pendingImportData = null;
     let itemsPendingDeletion = new Set();
     const deletionTimeouts = new Map();
+    // Tracks fallback timeouts for toggle animations so we can cancel them when transitionend fires
+    const toggleTimeouts = new Map();
     let bundlesPendingPermanentDeletion = new Set();
     const bundleDeletionTimeouts = new Map();
 
@@ -266,12 +288,47 @@
       }
       items.toArray().forEach((item) => {
         const li = document.createElement("li");
+        li.dataset.id = item.id;
         li.className = `flex items-center gap-3 p-4 transition-all cursor-pointer ${item.done ? 'done-item' : ''}`;
         if (item.bundleColor) {
             li.style.borderLeft = `5px solid ${item.bundleColor}`;
             li.style.paddingLeft = '11px';
         }
-        li.onclick = () => toggleItem(item.id);
+        // Animate on toggle: collapse/fade the item from its current position,
+        // let remaining items slide up, then perform the Yjs toggle which reinserts the item
+        li.onclick = (e) => {
+            // prevent double-activation when clicking the remove button
+            if (e.target.closest('button')) return;
+
+            const liEl = packingListEl.querySelector(`li[data-id="${item.id}"]`);
+            if (!liEl) return toggleItem(item.id);
+
+            // Set a fixed start height so the collapse animates smoothly
+            const startHeight = liEl.getBoundingClientRect().height;
+            liEl.style.maxHeight = startHeight + 'px';
+            // force reflow
+            // eslint-disable-next-line no-unused-expressions
+            liEl.offsetHeight;
+            liEl.classList.add('removing');
+
+            const onTransitionEnd = (ev) => {
+                if (ev.propertyName === 'max-height' || ev.propertyName === 'opacity') {
+                    liEl.removeEventListener('transitionend', onTransitionEnd);
+                    // cancel fallback timeout if present
+                    if (toggleTimeouts.has(item.id)) {
+                        clearTimeout(toggleTimeouts.get(item.id));
+                        toggleTimeouts.delete(item.id);
+                    }
+                    // perform the actual toggle which will reinsert the item in the done section
+                    toggleItem(item.id);
+                }
+            };
+            liEl.addEventListener('transitionend', onTransitionEnd);
+
+            // Fallback: if transition doesn't fire, toggle after a short delay
+            const fallbackId = setTimeout(() => { try { toggleItem(item.id); } catch (e) {} }, 400);
+            toggleTimeouts.set(item.id, fallbackId);
+        };
         
         const span = document.createElement("span");
         span.textContent = item.text;
@@ -292,7 +349,30 @@
                     deletionTimeouts.delete(item.id);
                 }
                 itemsPendingDeletion.delete(item.id);
-                removeItem(item.id);
+
+                // Animate removal then perform Yjs delete
+                const liEl = packingListEl.querySelector(`li[data-id="${item.id}"]`);
+                if (liEl) {
+                    const startHeight = liEl.getBoundingClientRect().height;
+                    liEl.style.maxHeight = startHeight + 'px';
+                    // force reflow
+                    // eslint-disable-next-line no-unused-expressions
+                    liEl.offsetHeight;
+                    liEl.classList.add('removing');
+
+                    const onTransitionEnd = (ev) => {
+                        if (ev.propertyName === 'max-height' || ev.propertyName === 'opacity') {
+                            liEl.removeEventListener('transitionend', onTransitionEnd);
+                            removeItem(item.id);
+                        }
+                    };
+                    liEl.addEventListener('transitionend', onTransitionEnd);
+
+                    // fallback timeout
+                    setTimeout(() => { try { removeItem(item.id); } catch (e) {} }, 400);
+                } else {
+                    removeItem(item.id);
+                }
             };
         } else {
             removeBtn.innerHTML = '&times;';
@@ -612,10 +692,13 @@
             const item = arr[index];
             items.delete(index, 1);
             if (!item.done) {
-                const firstDoneIndex = items.toArray().findIndex(it => it.done);
-                const insertionIndex = firstDoneIndex === -1 ? items.length : firstDoneIndex;
+                // place new 'done' item after existing done items to preserve order
+                const arrAfterDelete = items.toArray();
+                const lastDoneIndex = arrAfterDelete.reduce((last, it, i) => it.done ? i : last, -1);
+                const insertionIndex = lastDoneIndex === -1 ? arrAfterDelete.length : lastDoneIndex + 1;
                 items.insert(insertionIndex, [{ ...item, done: true }]);
             } else {
+                // moving back to unchecked: insert at the front
                 items.insert(0, [{ ...item, done: false }]);
             }
         });
