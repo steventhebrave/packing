@@ -50,10 +50,10 @@
         <thead>
           <tr class="border-b-2 border-gray-200 dark:border-gray-700">
             <th class="p-3 text-left text-sm font-semibold text-gray-500 dark:text-gray-400 sticky left-0 bg-white dark:bg-gray-800">Date</th>
-            <th id="participant-1" class="p-3 text-center text-lg font-bold text-slate-900 dark:text-white" contenteditable="true">P1</th>
-            <th id="participant-2" class="p-3 text-center text-lg font-bold text-slate-900 dark:text-white" contenteditable="true">P2</th>
-            <th id="participant-3" class="p-3 text-center text-lg font-bold text-slate-900 dark:text-white" contenteditable="true">P3</th>
-            <th id="participant-4" class="p-3 text-center text-lg font-bold text-slate-900 dark:text-white" contenteditable="true">P4</th>
+            <th id="participant-1" class="p-3 text-center text-lg font-bold text-slate-900 dark:text-white animate-pulse" contenteditable="false">...</th>
+            <th id="participant-2" class="p-3 text-center text-lg font-bold text-slate-900 dark:text-white animate-pulse" contenteditable="false">...</th>
+            <th id="participant-3" class="p-3 text-center text-lg font-bold text-slate-900 dark:text-white animate-pulse" contenteditable="false">...</th>
+            <th id="participant-4" class="p-3 text-center text-lg font-bold text-slate-900 dark:text-white animate-pulse" contenteditable="false">...</th>
           </tr>
         </thead>
         <tbody id="chain-grid">
@@ -119,6 +119,9 @@
     // Shared data types
     const chainData = doc.getMap("chainData"); // Map of "date-participant" -> status ("check" | "cross" | null)
     const participantNames = doc.getMap("participantNames"); // Map of participant index -> custom name
+    
+    // Track if we've synced initial data
+    let isInitialSyncComplete = false;
 
     // --- DOM ELEMENTS ---
     const statusEl = document.getElementById("status");
@@ -170,6 +173,31 @@
 
     // --- RENDERING ---
 
+    function renderSkeleton() {
+      chainGridEl.innerHTML = '';
+      
+      for (let i = 0; i < 10; i++) { // Show 10 skeleton rows
+        const row = document.createElement('tr');
+        row.className = 'animate-pulse';
+        
+        // Date column skeleton
+        const dateCell = document.createElement('td');
+        dateCell.className = 'p-3 sticky left-0 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700';
+        dateCell.innerHTML = '<div class="h-4 w-16 bg-gray-300 dark:bg-gray-600 rounded"></div>';
+        row.appendChild(dateCell);
+        
+        // Participant column skeletons
+        for (let j = 0; j < PARTICIPANTS.length; j++) {
+          const cell = document.createElement('td');
+          cell.className = 'p-3 text-center border-b border-gray-100 dark:border-gray-700';
+          cell.innerHTML = '<div class="inline-block w-8 h-8 bg-gray-300 dark:bg-gray-600 rounded-full"></div>';
+          row.appendChild(cell);
+        }
+        
+        chainGridEl.appendChild(row);
+      }
+    }
+
     function renderCell(status) {
       const cell = document.createElement('td');
       cell.className = 'chain-cell p-3 text-center border-b border-gray-100 dark:border-gray-700';
@@ -199,6 +227,9 @@
     }
 
     function renderGrid() {
+      // Don't render real data until we've synced
+      if (!isInitialSyncComplete) return;
+      
       chainGridEl.innerHTML = '';
       
       // Get today's date in local time (no time component)
@@ -277,11 +308,22 @@
     }
 
     function renderParticipantNames() {
+      // Don't render real names until we've synced
+      if (!isInitialSyncComplete) return;
+      
       participantHeaders.forEach((header, index) => {
+        // Get saved name or default
         const savedName = participantNames.get(`p${index}`);
-        if (savedName && header.textContent !== savedName) {
-          header.textContent = savedName;
-        }
+        const displayName = savedName || PARTICIPANTS[index];
+        
+        header.textContent = displayName;
+        
+        // Remove skeleton styling
+        header.className = header.className.replace(' animate-pulse', '');
+        
+        // Set up editability based on lock
+        const canEdit = LOCKED_PARTICIPANT === null || LOCKED_PARTICIPANT === index;
+        header.contentEditable = canEdit ? 'true' : 'false';
       });
     }
 
@@ -314,6 +356,15 @@
     }
 
     // --- EVENT LISTENERS ---
+
+    // Handle initial sync
+    provider.on('sync', synced => {
+      if (synced && !isInitialSyncComplete) {
+        isInitialSyncComplete = true;
+        renderGrid();
+        renderParticipantNames();
+      }
+    });
 
     provider.on("status", e => {
       if (navigator.onLine) {
@@ -355,12 +406,16 @@
 
     // --- YJS OBSERVERS ---
 
-    chainData.observe(renderGrid);
-    participantNames.observe(renderParticipantNames);
+    chainData.observe(() => {
+      if (isInitialSyncComplete) renderGrid();
+    });
+    
+    participantNames.observe(() => {
+      if (isInitialSyncComplete) renderParticipantNames();
+    });
 
-    // Initial render
-    renderGrid();
-    renderParticipantNames();
+    // Initial render - show skeleton
+    renderSkeleton();
 
   </script>
 </body>
