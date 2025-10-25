@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Don't Break the Chain</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap"
+    rel="stylesheet"
+  />
+  
+  <style>
+    body {
+      font-family: "Inter", system-ui, sans-serif;
+    }
+    
+    .chain-cell {
+      transition: all 0.2s ease;
+      cursor: pointer;
+      user-select: none;
+    }
+    
+    .chain-cell:hover {
+      transform: scale(1.1);
+    }
+    
+    .chain-cell svg {
+      transition: all 0.2s ease;
+    }
+  </style>
+</head>
+<body class="bg-slate-100 dark:bg-gray-900 text-slate-800 dark:text-slate-200 min-h-screen p-4 md:p-8">
+
+  <main class="max-w-4xl mx-auto">
+    <header class="mb-8 text-center">
+      <h1 class="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-2">Don't Break the Chain</h1>
+      <p class="text-gray-600 dark:text-gray-400">Track daily progress with your accountability buddies</p>
+      <div id="status" class="inline-block mt-4 px-3 py-1 rounded-full text-sm font-medium bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+        Connecting…
+      </div>
+    </header>
+
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-x-auto">
+      <table class="w-full">
+        <thead>
+          <tr class="border-b-2 border-gray-200 dark:border-gray-700">
+            <th class="p-3 text-left text-sm font-semibold text-gray-500 dark:text-gray-400 sticky left-0 bg-white dark:bg-gray-800">Date</th>
+            <th id="participant-1" class="p-3 text-center text-lg font-bold text-slate-900 dark:text-white" contenteditable="true">P1</th>
+            <th id="participant-2" class="p-3 text-center text-lg font-bold text-slate-900 dark:text-white" contenteditable="true">P2</th>
+            <th id="participant-3" class="p-3 text-center text-lg font-bold text-slate-900 dark:text-white" contenteditable="true">P3</th>
+            <th id="participant-4" class="p-3 text-center text-lg font-bold text-slate-900 dark:text-white" contenteditable="true">P4</th>
+          </tr>
+        </thead>
+        <tbody id="chain-grid">
+          <!-- Grid will be generated here -->
+        </tbody>
+      </table>
+    </div>
+
+    <footer class="mt-8 text-center">
+      <p class="text-xs text-gray-500">Share this page's URL to collaborate in real-time!</p>
+    </footer>
+  </main>
+
+  <script type="module">
+    import * as Y from "https://jspm.dev/yjs";
+    import { WebsocketProvider } from "https://jspm.dev/y-websocket";
+
+    // --- CONFIGURATION ---
+    const SERVER_URL = "wss://packing-list-realtime.fly.dev";
+    const START_DATE = new Date(2025, 9, 25); // Oct 25, 2025 (month is 0-indexed)
+    const NUM_WEEKS = 8;
+    const NUM_DAYS = NUM_WEEKS * 7;
+    const PARTICIPANTS = ['P1', 'P2', 'P3', 'P4'];
+
+    /**
+     * Gets the room name from the URL hash.
+     * If no hash is present, it generates a new random one and updates the URL.
+     */
+    function getRoomNameFromUrl() {
+      if (window.location.hash) {
+        return window.location.hash.substring(1);
+      } else {
+        const newRoom = 'chain-' + crypto.randomUUID().split('-')[0];
+        window.location.hash = newRoom;
+        return newRoom;
+      }
+    }
+
+    /**
+     * Gets the locked participant index from URL parameter ?p=X
+     * Returns null if no lock, or the participant index (0-3) if locked
+     */
+    function getLockedParticipant() {
+      const params = new URLSearchParams(window.location.search);
+      const p = params.get('p');
+      if (p !== null) {
+        const participantNum = parseInt(p, 10);
+        // Convert 1-4 to 0-3 index, validate range
+        if (participantNum >= 1 && participantNum <= PARTICIPANTS.length) {
+          return participantNum - 1;
+        }
+      }
+      return null;
+    }
+
+    const ROOM_NAME = getRoomNameFromUrl();
+    const LOCKED_PARTICIPANT = getLockedParticipant();
+
+    // --- YJS SETUP ---
+    const doc = new Y.Doc();
+    const provider = new WebsocketProvider(SERVER_URL, ROOM_NAME, doc);
+    
+    // Shared data types
+    const chainData = doc.getMap("chainData"); // Map of "date-participant" -> status ("check" | "cross" | null)
+    const participantNames = doc.getMap("participantNames"); // Map of participant index -> custom name
+
+    // --- DOM ELEMENTS ---
+    const statusEl = document.getElementById("status");
+    const chainGridEl = document.getElementById("chain-grid");
+    const participantHeaders = [
+      document.getElementById("participant-1"),
+      document.getElementById("participant-2"),
+      document.getElementById("participant-3"),
+      document.getElementById("participant-4")
+    ];
+
+    // --- HELPER FUNCTIONS ---
+    
+    function formatDate(date) {
+      const day = date.getDate();
+      const month = date.toLocaleDateString('en-US', { month: 'short' });
+      return `${day} ${month}`;
+    }
+
+    function getDateKey(date) {
+      return date.toISOString().split('T')[0]; // YYYY-MM-DD
+    }
+
+    function getCellKey(dateKey, participantIndex) {
+      return `${dateKey}-${participantIndex}`;
+    }
+
+    function getCellStatus(dateKey, participantIndex) {
+      return chainData.get(getCellKey(dateKey, participantIndex)) || null;
+    }
+
+    function setCellStatus(dateKey, participantIndex, status) {
+      const key = getCellKey(dateKey, participantIndex);
+      if (status === null) {
+        chainData.delete(key);
+      } else {
+        chainData.set(key, status);
+      }
+    }
+
+    function cycleCellStatus(dateKey, participantIndex) {
+      const current = getCellStatus(dateKey, participantIndex);
+      const next = current === null ? 'check' : current === 'check' ? 'cross' : null;
+      
+      doc.transact(() => {
+        setCellStatus(dateKey, participantIndex, next);
+      });
+    }
+
+    // --- RENDERING ---
+
+    function renderCell(status) {
+      const cell = document.createElement('td');
+      cell.className = 'chain-cell p-3 text-center border-b border-gray-100 dark:border-gray-700';
+
+      if (status === 'check') {
+        cell.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="inline-block text-green-500">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        `;
+      } else if (status === 'cross') {
+        cell.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="inline-block text-red-500">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        `;
+      } else {
+        cell.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block text-gray-300 dark:text-gray-600">
+            <circle cx="12" cy="12" r="10"></circle>
+          </svg>
+        `;
+      }
+
+      return cell;
+    }
+
+    function renderGrid() {
+      chainGridEl.innerHTML = '';
+      
+      // Get today's date in local time (no time component)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      for (let i = 0; i < NUM_DAYS; i++) {
+        const currentDate = new Date(START_DATE);
+        currentDate.setDate(START_DATE.getDate() + i);
+        const dateKey = getDateKey(currentDate);
+        
+        // Check if this is today
+        const dateOnly = new Date(currentDate);
+        dateOnly.setHours(0, 0, 0, 0);
+        const isToday = dateOnly.getTime() === today.getTime();
+        
+        // Check if weekend (Saturday = 6, Sunday = 0)
+        const dayOfWeek = currentDate.getDay();
+        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+        
+        const row = document.createElement('tr');
+        let rowClasses = 'hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors';
+        
+        // Add weekend styling
+        if (isWeekend) {
+          rowClasses = 'bg-blue-50/30 dark:bg-blue-900/10 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors';
+        }
+        
+        // Add today highlighting (stronger)
+        if (isToday) {
+          rowClasses = 'bg-yellow-100 dark:bg-yellow-900/30 hover:bg-yellow-200 dark:hover:bg-yellow-900/40 transition-colors ring-2 ring-yellow-400 dark:ring-yellow-600';
+        }
+        
+        row.className = rowClasses;
+        
+        // Date column
+        const dateCell = document.createElement('td');
+        let dateCellClasses = 'p-3 text-sm font-medium text-gray-600 dark:text-gray-400 sticky left-0 border-b border-gray-100 dark:border-gray-700';
+        
+        // Match the row background for sticky column
+        if (isWeekend) {
+          dateCellClasses = 'p-3 text-sm font-medium text-gray-600 dark:text-gray-400 sticky left-0 bg-blue-50/30 dark:bg-blue-900/10 border-b border-gray-100 dark:border-gray-700';
+        } else {
+          dateCellClasses = 'p-3 text-sm font-medium text-gray-600 dark:text-gray-400 sticky left-0 bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700';
+        }
+        
+        if (isToday) {
+          dateCellClasses = 'p-3 text-sm font-bold text-yellow-900 dark:text-yellow-200 sticky left-0 bg-yellow-100 dark:bg-yellow-900/30 border-b border-gray-100 dark:border-gray-700';
+        }
+        
+        dateCell.className = dateCellClasses;
+        dateCell.textContent = formatDate(currentDate);
+        row.appendChild(dateCell);
+        
+        // Participant columns
+        for (let participantIndex = 0; participantIndex < PARTICIPANTS.length; participantIndex++) {
+          const status = getCellStatus(dateKey, participantIndex);
+          const cell = renderCell(status);
+          
+          // Check if this cell is editable
+          const isEditable = LOCKED_PARTICIPANT === null || LOCKED_PARTICIPANT === participantIndex;
+          
+          if (isEditable) {
+            cell.onclick = () => cycleCellStatus(dateKey, participantIndex);
+          } else {
+            // Disable interaction for locked cells
+            cell.className = cell.className.replace('cursor-pointer', 'cursor-not-allowed opacity-50');
+            cell.onclick = null;
+          }
+          
+          row.appendChild(cell);
+        }
+        
+        chainGridEl.appendChild(row);
+      }
+    }
+
+    function renderParticipantNames() {
+      participantHeaders.forEach((header, index) => {
+        const savedName = participantNames.get(`p${index}`);
+        if (savedName && header.textContent !== savedName) {
+          header.textContent = savedName;
+        }
+      });
+    }
+
+    // --- STATUS UI ---
+    
+    function updateStatusUI(status) {
+      let text = status;
+      let colorClasses = '';
+
+      switch (status) {
+        case 'connected':
+          text = 'Connected';
+          colorClasses = 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200';
+          break;
+        case 'disconnected':
+          text = 'Disconnected';
+          colorClasses = 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200';
+          break;
+        case 'offline':
+          text = 'Offline';
+          colorClasses = 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200';
+          break;
+        default:
+          text = 'Connecting…';
+          colorClasses = 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200';
+      }
+
+      statusEl.textContent = text;
+      statusEl.className = `inline-block mt-4 px-3 py-1 rounded-full text-sm font-medium transition-colors ${colorClasses}`;
+    }
+
+    // --- EVENT LISTENERS ---
+
+    provider.on("status", e => {
+      if (navigator.onLine) {
+        updateStatusUI(e.status);
+      }
+    });
+
+    window.addEventListener('offline', () => updateStatusUI('offline'));
+    window.addEventListener('online', () => updateStatusUI(provider.status || 'connecting'));
+    
+    updateStatusUI(navigator.onLine ? provider.status || 'connecting' : 'offline');
+
+    // Save participant names when edited (only allow editing if not locked or if it's your column)
+    participantHeaders.forEach((header, index) => {
+      const canEdit = LOCKED_PARTICIPANT === null || LOCKED_PARTICIPANT === index;
+      
+      if (!canEdit) {
+        header.contentEditable = 'false';
+        header.className = header.className + ' opacity-50 cursor-not-allowed';
+      } else {
+        header.addEventListener('blur', () => {
+          const newName = header.textContent.trim();
+          if (newName && newName !== PARTICIPANTS[index]) {
+            doc.transact(() => {
+              participantNames.set(`p${index}`, newName);
+            });
+          }
+        });
+        
+        // Prevent newlines in contenteditable
+        header.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            header.blur();
+          }
+        });
+      }
+    });
+
+    // --- YJS OBSERVERS ---
+
+    chainData.observe(renderGrid);
+    participantNames.observe(renderParticipantNames);
+
+    // Initial render
+    renderGrid();
+    renderParticipantNames();
+
+  </script>
+</body>
+</html>
