@@ -347,6 +347,9 @@
         settingsBtn.onclick = () => {
             bindSettingsToUI();
             settingsModal.classList.remove('hidden');
+        };
+
+        saveSettingsBtn.onclick = () => {
             settings.enabled = notificationsEnabled.checked;
             settings.daily.enabled = dailyEnabled.checked;
             settings.daily.time = dailyTime.value;
