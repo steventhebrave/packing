@@ -347,27 +347,6 @@
         settingsBtn.onclick = () => {
             bindSettingsToUI();
             settingsModal.classList.remove('hidden');
-        };
-
-        closeSettingsBtn.onclick = () => settingsModal.classList.add('hidden');
-
-        notificationsEnabled.onchange = async () => {
-            if (notificationsEnabled.checked) {
-                const permission = await Notification.requestPermission();
-                if (permission !== 'granted') {
-                    notificationsEnabled.checked = false;
-                    permError.classList.remove('hidden');
-                } else {
-                    permError.classList.add('hidden');
-                }
-            }
-            updateDisabledStates();
-        };
-
-        dailyEnabled.onchange = updateDisabledStates;
-        weeklyEnabled.onchange = updateDisabledStates;
-
-        saveSettingsBtn.onclick = () => {
             settings.enabled = notificationsEnabled.checked;
             settings.daily.enabled = dailyEnabled.checked;
             settings.daily.time = dailyTime.value;
