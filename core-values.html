@@ -64,7 +64,6 @@
                 </button>
             </div>
             <h1 class="text-2xl font-bold text-slate-800 dark:text-white">Core Values</h1>
-            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Weekly Check-in</p>
         </header>
 
         <!-- Mindset Section -->
@@ -349,6 +348,24 @@
             settingsModal.classList.remove('hidden');
         };
 
+        closeSettingsBtn.onclick = () => settingsModal.classList.add('hidden');
+
+        notificationsEnabled.onchange = async () => {
+            if (notificationsEnabled.checked) {
+                const permission = await Notification.requestPermission();
+                if (permission !== 'granted') {
+                    notificationsEnabled.checked = false;
+                    permError.classList.remove('hidden');
+                } else {
+                    permError.classList.add('hidden');
+                }
+            }
+            updateDisabledStates();
+        };
+
+        dailyEnabled.onchange = updateDisabledStates;
+        weeklyEnabled.onchange = updateDisabledStates;
+
         saveSettingsBtn.onclick = () => {
             settings.enabled = notificationsEnabled.checked;
             settings.daily.enabled = dailyEnabled.checked;
@@ -484,6 +501,41 @@
             // If placeholder text is showing, don't put it in the input
             if (mindsetText.classList.contains('italic')) {
                 mindsetInput.value = "";
+            } else {
+                mindsetInput.value = mindsetText.textContent;
+            }
+        };
+
+        mindsetCancelBtn.onclick = () => {
+            mindsetEditor.classList.add('hidden');
+            mindsetDisplay.classList.remove('hidden');
+        };
+
+        mindsetSaveBtn.onclick = () => {
+            const text = mindsetInput.value.trim();
+            if (text) {
+                const entry = {
+                    id: crypto.randomUUID(),
+                    timestamp: Date.now(),
+                    text: text
+                };
+                doc.transact(() => {
+                    mindsetHistory.push([entry]);
+                });
+            }
+            mindsetEditor.classList.add('hidden');
+            mindsetDisplay.classList.remove('hidden');
+        };
+
+        form.onsubmit = (e) => {
+            e.preventDefault();
+            const family = parseInt(document.getElementById("input-family-range").value);
+            const closeness = parseInt(document.getElementById("input-closeness-range").value);
+            const collaboration = parseInt(document.getElementById("input-collaboration-range").value);
+
+            const entry = {
+                id: crypto.randomUUID(),
+                timestamp: Date.now(),
                 scores: { family, closeness, collaboration }
             };
 
