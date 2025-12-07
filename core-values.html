@@ -1,0 +1,638 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Core Values Check-in</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet" />
+
+    <style>
+        body {
+            font-family: "Inter", system-ui, sans-serif;
+        }
+    </style>
+    <script>
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+</head>
+
+<body
+    class="bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 transition-colors duration-300 min-h-screen flex flex-col">
+
+    <main class="max-w-md mx-auto p-4 md:p-8 w-full flex-grow">
+
+        <header class="mb-6 text-center relative">
+            <div class="absolute top-0 right-0 flex gap-2">
+                <button id="settings-btn"
+                    class="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"
+                    title="Settings">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z">
+                        </path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                </button>
+                <button id="theme-toggle"
+                    class="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition-colors"
+                    title="Toggle Dark Mode">
+                    <svg id="icon-sun" class="w-6 h-6 hidden dark:block" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z">
+                        </path>
+                    </svg>
+                    <svg id="icon-moon" class="w-6 h-6 block dark:hidden" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+            <h1 class="text-2xl font-bold text-slate-800 dark:text-white">Core Values</h1>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Weekly Check-in</p>
+        </header>
+
+        <!-- Mindset Section -->
+        <section class="mb-6">
+            <div id="mindset-display"
+                class="text-center cursor-pointer p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors group">
+                <p id="mindset-text" class="text-slate-600 dark:text-slate-300 italic text-lg font-medium">Tap to add
+                    something to keep in mind...</p>
+                <p class="text-[10px] text-slate-400 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">Tap to
+                    edit</p>
+            </div>
+            <div id="mindset-editor" class="hidden">
+                <textarea id="mindset-input"
+                    class="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none mb-2"
+                    rows="3" placeholder="What do you want to keep in mind?"></textarea>
+                <div class="flex justify-end gap-2">
+                    <button id="mindset-cancel-btn"
+                        class="px-3 py-1 text-sm text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">Cancel</button>
+                    <button id="mindset-save-btn"
+                        class="px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-md">Save</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Last Check-in Section -->
+        <section id="last-checkin-section" class="mb-6 hidden">
+            <div class="flex justify-between items-end mb-2 px-1">
+                <h2 class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Last
+                    Check-in</h2>
+                <div class="text-xs text-slate-400" id="last-checkin-date"></div>
+            </div>
+            <div
+                class="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-4">
+                <div class="grid grid-cols-3 gap-2 text-center">
+                    <div>
+                        <div class="text-2xl font-bold text-blue-600" id="last-score-family">-</div>
+                        <div class="text-xs text-slate-500 mt-1">Family</div>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-bold text-purple-600" id="last-score-closeness">-</div>
+                        <div class="text-xs text-slate-500 mt-1">Closeness</div>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-bold text-green-600" id="last-score-collaboration">-</div>
+                        <div class="text-xs text-slate-500 mt-1">Collaboration</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- New Check-in Form -->
+        <section class="mb-8">
+            <h2 class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 px-1">New
+                Check-in</h2>
+            <div
+                class="bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 p-4">
+                <form id="checkin-form" class="space-y-4">
+
+                    <div class="flex items-center gap-3">
+                        <label class="w-24 text-sm font-medium text-slate-700 dark:text-slate-300">Family</label>
+                        <input type="range" min="1" max="10" value="5"
+                            class="flex-grow h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                            id="input-family-range"
+                            oninput="document.getElementById('val-family').textContent = this.value">
+                        <span class="text-lg font-bold text-blue-600 w-6 text-center" id="val-family">5</span>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        <label class="w-24 text-sm font-medium text-slate-700 dark:text-slate-300">Closeness</label>
+                        <input type="range" min="1" max="10" value="5"
+                            class="flex-grow h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                            id="input-closeness-range"
+                            oninput="document.getElementById('val-closeness').textContent = this.value">
+                        <span class="text-lg font-bold text-purple-600 w-6 text-center" id="val-closeness">5</span>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        <label class="w-24 text-sm font-medium text-slate-700 dark:text-slate-300">Collaboration</label>
+                        <input type="range" min="1" max="10" value="5"
+                            class="flex-grow h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-green-600"
+                            id="input-collaboration-range"
+                            oninput="document.getElementById('val-collaboration').textContent = this.value">
+                        <span class="text-lg font-bold text-green-600 w-6 text-center" id="val-collaboration">5</span>
+                    </div>
+
+                    <button type="submit"
+                        class="w-full bg-slate-900 hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors shadow-md text-sm mt-2">
+                        Save Check-in
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- History Section -->
+        <section class="mb-8">
+            <div class="flex justify-between items-center mb-2 px-1">
+                <h2 class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">History
+                </h2>
+                <button id="toggle-history-btn"
+                    class="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium">Show
+                    All</button>
+            </div>
+            <div id="history-list" class="space-y-3 hidden">
+                <!-- History items rendered here -->
+            </div>
+        </section>
+
+        <!-- Mindset History Section -->
+        <section>
+            <div class="flex justify-between items-center mb-2 px-1">
+                <h2 class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Mindset
+                    History</h2>
+                <button id="toggle-mindset-history-btn"
+                    class="text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium">Show
+                    All</button>
+            </div>
+            <div id="mindset-history-list" class="space-y-3 hidden">
+                <!-- Mindset history items rendered here -->
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="fixed inset-0 bg-slate-900/50 flex items-center justify-center hidden z-50">
+        <div
+            class="bg-white dark:bg-slate-800 rounded-xl p-6 w-full max-w-sm m-4 shadow-xl border border-slate-200 dark:border-slate-700">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-slate-800 dark:text-white">Settings</h2>
+                <button id="close-settings-btn"
+                    class="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="space-y-6">
+                <!-- Enable Toggle -->
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-700 dark:text-slate-300 font-medium">Enable Notifications</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="notifications-enabled" class="sr-only peer">
+                        <div
+                            class="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600">
+                        </div>
+                    </label>
+                </div>
+
+                <!-- Daily Settings -->
+                <div class="border-t border-slate-200 dark:border-slate-700 pt-4">
+                    <div class="flex items-center mb-2">
+                        <input type="checkbox" id="daily-enabled"
+                            class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                        <label for="daily-enabled"
+                            class="ml-2 text-sm font-medium text-slate-900 dark:text-gray-300">Daily
+                            Reminder</label>
+                    </div>
+                    <div class="pl-6">
+                        <input type="time" id="daily-time"
+                            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                            disabled>
+                    </div>
+                </div>
+
+                <!-- Weekly Settings -->
+                <div class="border-t border-slate-200 dark:border-slate-700 pt-4">
+                    <div class="flex items-center mb-2">
+                        <input type="checkbox" id="weekly-enabled"
+                            class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                        <label for="weekly-enabled"
+                            class="ml-2 text-sm font-medium text-slate-900 dark:text-gray-300">Weekly Reminder</label>
+                    </div>
+                    <div class="pl-6 space-y-2">
+                        <select id="weekly-day"
+                            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                            disabled>
+                            <option value="1">Monday</option>
+                            <option value="2">Tuesday</option>
+                            <option value="3">Wednesday</option>
+                            <option value="4">Thursday</option>
+                            <option value="5">Friday</option>
+                            <option value="6">Saturday</option>
+                            <option value="0">Sunday</option>
+                        </select>
+                        <input type="time" id="weekly-time"
+                            class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+                            disabled>
+                    </div>
+                </div>
+
+                <div class="pt-2">
+                    <button id="test-notification-btn"
+                        class="w-full text-blue-600 hover:text-blue-800 dark:text-blue-400 text-sm font-medium">Test
+                        Notification</button>
+                    <div id="perm-error" class="text-red-500 text-xs mt-1 hidden text-center">Permission denied. Check
+                        browser settings.</div>
+                </div>
+
+                <div class="pt-4 border-t border-slate-200 dark:border-slate-700 flex justify-end">
+                    <button id="save-settings-btn"
+                        class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg text-sm">Save &
+                        Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="p-6 text-center">
+        <div id="status"
+            class="inline-block px-3 py-1 rounded-full text-xs font-medium bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+            Connecting…
+        </div>
+    </footer>
+
+    <script type="module">
+        import * as Y from "https://jspm.dev/yjs";
+        import { WebsocketProvider } from "https://jspm.dev/y-websocket";
+
+        const SERVER_URL = "wss://packing-list-realtime.fly.dev";
+
+        // --- ROOM LOGIC ---
+        function getRoomNameFromUrl() {
+            if (window.location.hash) {
+                return window.location.hash.substring(1);
+            } else {
+                const newRoom = 'values-' + crypto.randomUUID().split('-')[0];
+                window.location.hash = newRoom;
+                return newRoom;
+            }
+        }
+
+        const ROOM_NAME = getRoomNameFromUrl();
+
+        // --- SETTINGS & NOTIFICATIONS LOGIC ---
+        const settingsBtn = document.getElementById('settings-btn');
+        const settingsModal = document.getElementById('settings-modal');
+        const closeSettingsBtn = document.getElementById('close-settings-btn');
+        const saveSettingsBtn = document.getElementById('save-settings-btn');
+        const testNotificationBtn = document.getElementById('test-notification-btn');
+
+        const notificationsEnabled = document.getElementById('notifications-enabled');
+        const dailyEnabled = document.getElementById('daily-enabled');
+        const dailyTime = document.getElementById('daily-time');
+        const weeklyEnabled = document.getElementById('weekly-enabled');
+        const weeklyDay = document.getElementById('weekly-day');
+        const weeklyTime = document.getElementById('weekly-time');
+        const permError = document.getElementById('perm-error');
+
+        // Load Settings
+        let settings = JSON.parse(localStorage.getItem('notificationSettings')) || {
+            enabled: false,
+            daily: { enabled: false, time: '09:00' },
+            weekly: { enabled: false, day: '1', time: '09:00' },
+            lastSent: 0
+        };
+
+        function bindSettingsToUI() {
+            notificationsEnabled.checked = settings.enabled;
+            dailyEnabled.checked = settings.daily.enabled;
+            dailyTime.value = settings.daily.time;
+            weeklyEnabled.checked = settings.weekly.enabled;
+            weeklyDay.value = settings.weekly.day;
+            weeklyTime.value = settings.weekly.time;
+
+            updateDisabledStates();
+        }
+
+        function updateDisabledStates() {
+            const master = !notificationsEnabled.checked;
+            dailyEnabled.disabled = master;
+            weeklyEnabled.disabled = master;
+
+            dailyTime.disabled = master || !dailyEnabled.checked;
+            weeklyDay.disabled = master || !weeklyEnabled.checked;
+            weeklyTime.disabled = master || !weeklyEnabled.checked;
+        }
+
+        settingsBtn.onclick = () => {
+            bindSettingsToUI();
+            settingsModal.classList.remove('hidden');
+        };
+
+        closeSettingsBtn.onclick = () => settingsModal.classList.add('hidden');
+
+        notificationsEnabled.onchange = async () => {
+            if (notificationsEnabled.checked) {
+                const permission = await Notification.requestPermission();
+                if (permission !== 'granted') {
+                    notificationsEnabled.checked = false;
+                    permError.classList.remove('hidden');
+                } else {
+                    permError.classList.add('hidden');
+                }
+            }
+            updateDisabledStates();
+        };
+
+        dailyEnabled.onchange = updateDisabledStates;
+        weeklyEnabled.onchange = updateDisabledStates;
+
+        saveSettingsBtn.onclick = () => {
+            settings.enabled = notificationsEnabled.checked;
+            settings.daily.enabled = dailyEnabled.checked;
+            settings.daily.time = dailyTime.value;
+            settings.weekly.enabled = weeklyEnabled.checked;
+            settings.weekly.day = weeklyDay.value;
+            settings.weekly.time = weeklyTime.value;
+
+            localStorage.setItem('notificationSettings', JSON.stringify(settings));
+            settingsModal.classList.add('hidden');
+        };
+
+        testNotificationBtn.onclick = () => {
+            if (Notification.permission === 'granted') {
+                new Notification("Core Values Check-in", { body: "This is a test notification." });
+            } else {
+                alert("Notifications not granted.");
+            }
+        };
+
+        // Polling for Notifications
+        setInterval(() => {
+            if (!settings.enabled) return;
+
+            const now = new Date();
+            const currentDay = now.getDay().toString(); // 0-6
+            const currentTime = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
+
+            // Check cooldown (prevent spamming same minute)
+            if (Date.now() - settings.lastSent < 60000) return;
+
+            let shouldNotify = false;
+
+            // Daily Check
+            if (settings.daily.enabled && settings.daily.time === currentTime) {
+                shouldNotify = true;
+            }
+
+            // Weekly Check
+            if (settings.weekly.enabled && settings.weekly.day === currentDay && settings.weekly.time === currentTime) {
+                shouldNotify = true;
+            }
+
+            if (shouldNotify) {
+                new Notification("Core Values Check-in", { body: "Time for your check-in!" });
+                settings.lastSent = Date.now();
+                localStorage.setItem('notificationSettings', JSON.stringify(settings));
+            }
+        }, 10000); // Check every 10s
+
+        // --- THEME LOGIC ---
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        if (themeToggleBtn) {
+            themeToggleBtn.onclick = () => {
+                if (document.documentElement.classList.contains('dark')) {
+                    document.documentElement.classList.remove('dark');
+                    localStorage.theme = 'light';
+                } else {
+                    document.documentElement.classList.add('dark');
+                    localStorage.theme = 'dark';
+                }
+            };
+        }
+
+        // --- YJS SETUP ---
+        const doc = new Y.Doc();
+        const provider = new WebsocketProvider(SERVER_URL, ROOM_NAME, doc);
+        const history = doc.getArray("history");
+        const mindsetHistory = doc.getArray("mindsetHistory");
+
+        const statusEl = document.getElementById("status");
+
+        provider.on('status', event => {
+            statusEl.textContent = event.status;
+            if (event.status === 'connected') {
+                statusEl.className = "inline-block px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700";
+            } else {
+                statusEl.className = "inline-block px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700";
+            }
+        });
+
+        // --- UI LOGIC ---
+        const form = document.getElementById("checkin-form");
+        const lastCheckinSection = document.getElementById("last-checkin-section");
+        const lastCheckinDate = document.getElementById("last-checkin-date");
+        const lastScoreFamily = document.getElementById("last-score-family");
+        const lastScoreCloseness = document.getElementById("last-score-closeness");
+        const lastScoreCollaboration = document.getElementById("last-score-collaboration");
+
+        const historyList = document.getElementById("history-list");
+        const toggleHistoryBtn = document.getElementById("toggle-history-btn");
+
+        const mindsetDisplay = document.getElementById("mindset-display");
+        const mindsetText = document.getElementById("mindset-text");
+        const mindsetEditor = document.getElementById("mindset-editor");
+        const mindsetInput = document.getElementById("mindset-input");
+        const mindsetCancelBtn = document.getElementById("mindset-cancel-btn");
+        const mindsetSaveBtn = document.getElementById("mindset-save-btn");
+
+        const mindsetHistoryList = document.getElementById("mindset-history-list");
+        const toggleMindsetHistoryBtn = document.getElementById("toggle-mindset-history-btn");
+
+        let isHistoryVisible = false;
+        let isMindsetHistoryVisible = false;
+
+        toggleHistoryBtn.onclick = () => {
+            isHistoryVisible = !isHistoryVisible;
+            if (isHistoryVisible) {
+                historyList.classList.remove('hidden');
+                toggleHistoryBtn.textContent = "Hide";
+            } else {
+                historyList.classList.add('hidden');
+                toggleHistoryBtn.textContent = "Show All";
+            }
+        };
+
+        toggleMindsetHistoryBtn.onclick = () => {
+            isMindsetHistoryVisible = !isMindsetHistoryVisible;
+            if (isMindsetHistoryVisible) {
+                mindsetHistoryList.classList.remove('hidden');
+                toggleMindsetHistoryBtn.textContent = "Hide";
+            } else {
+                mindsetHistoryList.classList.add('hidden');
+                toggleMindsetHistoryBtn.textContent = "Show All";
+            }
+        };
+
+        // Mindset Editor Logic
+        mindsetDisplay.onclick = () => {
+            mindsetDisplay.classList.add('hidden');
+            mindsetEditor.classList.remove('hidden');
+            mindsetInput.focus();
+            // If placeholder text is showing, don't put it in the input
+            if (mindsetText.classList.contains('italic')) {
+                mindsetInput.value = "";
+            } else {
+                mindsetInput.value = mindsetText.textContent;
+            }
+        };
+
+        mindsetCancelBtn.onclick = () => {
+            mindsetEditor.classList.add('hidden');
+            mindsetDisplay.classList.remove('hidden');
+        };
+
+        mindsetSaveBtn.onclick = () => {
+            const text = mindsetInput.value.trim();
+            if (text) {
+                const entry = {
+                    id: crypto.randomUUID(),
+                    timestamp: Date.now(),
+                    text: text
+                };
+                doc.transact(() => {
+                    mindsetHistory.push([entry]);
+                });
+            }
+            mindsetEditor.classList.add('hidden');
+            mindsetDisplay.classList.remove('hidden');
+        };
+
+        form.onsubmit = (e) => {
+            e.preventDefault();
+            const family = parseInt(document.getElementById("input-family-range").value);
+            const closeness = parseInt(document.getElementById("input-closeness-range").value);
+            const collaboration = parseInt(document.getElementById("input-collaboration-range").value);
+
+            const entry = {
+                id: crypto.randomUUID(),
+                timestamp: Date.now(),
+                scores: { family, closeness, collaboration }
+            };
+
+            doc.transact(() => {
+                history.push([entry]);
+            });
+
+            // Reset form to default 5
+            document.getElementById("input-family-range").value = 5;
+            document.getElementById("val-family").textContent = "5";
+            document.getElementById("input-closeness-range").value = 5;
+            document.getElementById("val-closeness").textContent = "5";
+            document.getElementById("input-collaboration-range").value = 5;
+            document.getElementById("val-collaboration").textContent = "5";
+        };
+
+        function render() {
+            const entries = history.toArray();
+            const mindsetEntries = mindsetHistory.toArray();
+
+            // Render Mindset (Current)
+            if (mindsetEntries.length > 0) {
+                const current = mindsetEntries[mindsetEntries.length - 1];
+                mindsetText.textContent = current.text;
+                mindsetText.classList.remove('italic', 'text-slate-400');
+                mindsetText.classList.add('text-slate-800', 'dark:text-slate-200');
+            } else {
+                mindsetText.textContent = "Tap to add something to keep in mind...";
+                mindsetText.classList.add('italic', 'text-slate-400');
+                mindsetText.classList.remove('text-slate-800', 'dark:text-slate-200');
+            }
+
+            // Render Last Check-in
+            if (entries.length > 0) {
+                const last = entries[entries.length - 1];
+                lastCheckinSection.classList.remove('hidden');
+                lastCheckinDate.textContent = new Date(last.timestamp).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+                lastScoreFamily.textContent = last.scores.family;
+                lastScoreCloseness.textContent = last.scores.closeness;
+                lastScoreCollaboration.textContent = last.scores.collaboration;
+            } else {
+                lastCheckinSection.classList.add('hidden');
+            }
+
+            // Render History
+            historyList.innerHTML = "";
+            // Show newest first
+            [...entries].reverse().forEach(entry => {
+                const el = document.createElement("div");
+                el.className = "bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-100 dark:border-slate-700 shadow-sm flex justify-between items-center";
+
+                const dateStr = new Date(entry.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+                el.innerHTML = `
+          <div class="text-xs text-slate-400 font-medium w-24">${dateStr}</div>
+          <div class="flex gap-6 flex-grow justify-end">
+             <div class="text-center w-8">
+               <div class="text-sm font-bold text-blue-600">${entry.scores.family}</div>
+               <div class="text-[10px] text-slate-400">Fam</div>
+             </div>
+             <div class="text-center w-8">
+               <div class="text-sm font-bold text-purple-600">${entry.scores.closeness}</div>
+               <div class="text-[10px] text-slate-400">Clo</div>
+             </div>
+             <div class="text-center w-8">
+               <div class="text-sm font-bold text-green-600">${entry.scores.collaboration}</div>
+               <div class="text-[10px] text-slate-400">Col</div>
+             </div>
+          </div>
+        `;
+                historyList.append(el);
+            });
+
+            // Render Mindset History
+            mindsetHistoryList.innerHTML = "";
+            [...mindsetEntries].reverse().forEach(entry => {
+                const el = document.createElement("div");
+                el.className = "bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-100 dark:border-slate-700 shadow-sm";
+                const dateStr = new Date(entry.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+                el.innerHTML = `
+                    <div class="text-xs text-slate-400 font-medium mb-1">${dateStr}</div>
+                    <div class="text-sm text-slate-700 dark:text-slate-300">${entry.text}</div>
+                `;
+                mindsetHistoryList.append(el);
+            });
+        }
+
+        // Observe changes
+        history.observe(render);
+        mindsetHistory.observe(render);
+
+        // Initial render
+        render();
+
+    </script>
+</body>
+
+</html>
