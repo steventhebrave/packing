@@ -484,41 +484,6 @@
             // If placeholder text is showing, don't put it in the input
             if (mindsetText.classList.contains('italic')) {
                 mindsetInput.value = "";
-            } else {
-                mindsetInput.value = mindsetText.textContent;
-            }
-        };
-
-        mindsetCancelBtn.onclick = () => {
-            mindsetEditor.classList.add('hidden');
-            mindsetDisplay.classList.remove('hidden');
-        };
-
-        mindsetSaveBtn.onclick = () => {
-            const text = mindsetInput.value.trim();
-            if (text) {
-                const entry = {
-                    id: crypto.randomUUID(),
-                    timestamp: Date.now(),
-                    text: text
-                };
-                doc.transact(() => {
-                    mindsetHistory.push([entry]);
-                });
-            }
-            mindsetEditor.classList.add('hidden');
-            mindsetDisplay.classList.remove('hidden');
-        };
-
-        form.onsubmit = (e) => {
-            e.preventDefault();
-            const family = parseInt(document.getElementById("input-family-range").value);
-            const closeness = parseInt(document.getElementById("input-closeness-range").value);
-            const collaboration = parseInt(document.getElementById("input-collaboration-range").value);
-
-            const entry = {
-                id: crypto.randomUUID(),
-                timestamp: Date.now(),
                 scores: { family, closeness, collaboration }
             };
 
