@@ -70,7 +70,8 @@
         <section class="mb-6">
             <div id="mindset-display"
                 class="text-center cursor-pointer p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors group">
-                <p id="mindset-text" class="text-slate-600 dark:text-slate-300 italic text-lg font-medium">Tap to add
+                <p id="mindset-text"
+                    class="text-slate-600 dark:text-slate-300 italic text-lg font-medium whitespace-pre-wrap">Tap to add
                     something to keep in mind...</p>
                 <p class="text-[10px] text-slate-400 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">Tap to
                     edit</p>
@@ -618,7 +619,7 @@
 
                 el.innerHTML = `
                     <div class="text-xs text-slate-400 font-medium mb-1">${dateStr}</div>
-                    <div class="text-sm text-slate-700 dark:text-slate-300">${entry.text}</div>
+                    <div class="text-sm text-slate-700 dark:text-slate-300 whitespace-pre-wrap">${entry.text}</div>
                 `;
                 mindsetHistoryList.append(el);
             });
