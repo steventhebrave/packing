@@ -13,7 +13,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet" />
-    <link rel="manifest" href="./manifest.json" />
+
     <meta name="theme-color" content="#3b82f6" />
 
     <style>
@@ -228,6 +228,36 @@
         }
 
         const ROOM_NAME = getRoomNameFromUrl();
+
+        // --- DYNAMIC MANIFEST ---
+        // Update the manifest to use the current URL (with hash) as the start_url
+        async function updateManifest() {
+            try {
+                const response = await fetch('./manifest.json');
+                const manifest = await response.json();
+
+                // Set start_url to the full current URL so the installed app opens this specific lists
+                manifest.start_url = window.location.href;
+                // Also set a unique ID so different lists can *technically* be different apps
+                // (though browser support varies)
+                manifest.id = 'packing-list-' + ROOM_NAME;
+
+                const stringManifest = JSON.stringify(manifest);
+                const blob = new Blob([stringManifest], { type: 'application/json' });
+                const manifestURL = URL.createObjectURL(blob);
+
+                let manifestLink = document.querySelector('link[rel="manifest"]');
+                if (!manifestLink) {
+                    manifestLink = document.createElement('link');
+                    manifestLink.rel = 'manifest';
+                    document.head.appendChild(manifestLink);
+                }
+                manifestLink.href = manifestURL;
+            } catch (error) {
+                console.error('Error updating manifest:', error);
+            }
+        }
+        updateManifest();
 
         const BUNDLE_COLORS = [
             { name: 'Gray', hex: '#6b7280' }, { name: 'Red', hex: '#ef4444' },
