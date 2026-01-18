@@ -284,9 +284,11 @@
             const ctx = canvas.getContext('2d');
             ctx.drawImage(img, 0, 0, width, height);
 
+            // Compress
+            // Convert to WebP (better compression than JPEG)
             canvas.toBlob((blob) => {
               resolve(blob);
-            }, 'image/jpeg', quality);
+            }, 'image/webp', 0.8);
           };
           img.onerror = (err) => reject(err);
         };
@@ -304,6 +306,16 @@
 
       try {
         const compressedBlob = await compressImage(file);
+
+        // Log compression stats
+        const originalSize = (file.size / 1024).toFixed(2);
+        const newSize = (compressedBlob.size / 1024).toFixed(2);
+        const reduction = ((1 - (compressedBlob.size / file.size)) * 100).toFixed(1);
+        console.group('🖼️ Image Compression Utils');
+        console.log(`Original:   ${originalSize} KB`);
+        console.log(`Compressed: ${newSize} KB (WebP)`);
+        console.log(`Savings:    ${reduction}% 📉`);
+        console.groupEnd();
 
         // Create form data
         const formData = new FormData();
