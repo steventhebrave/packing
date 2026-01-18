@@ -242,6 +242,14 @@
                 // (though browser support varies)
                 manifest.id = 'packing-list-' + ROOM_NAME;
 
+                // Fix icon paths: Blob URLs change the base path, so relative links in the manifest break.
+                // We must convert them to absolute URLs.
+                if (manifest.icons) {
+                    manifest.icons.forEach(icon => {
+                        icon.src = new URL(icon.src, window.location.href).href;
+                    });
+                }
+
                 const stringManifest = JSON.stringify(manifest);
                 const blob = new Blob([stringManifest], { type: 'application/json' });
                 const manifestURL = URL.createObjectURL(blob);
