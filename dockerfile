@@ -1,8 +1,13 @@
 FROM node:20-alpine
 WORKDIR /app
 
-# Minimal package; install server
-RUN npm init -y && npm install @y/websocket-server
+# Minimal package; install server & dependencies
+# Pinning y-websocket to 1.5.4 to ensure compatibility with standard examples
+RUN npm init -y && \
+    npm install y-websocket@1.5.4 yjs express multer ws cors
+
+# Copy server code
+COPY server.js .
 
 # Persistence directory (Fly volume mounts here)
 RUN mkdir -p /ydata
@@ -14,5 +19,5 @@ ENV YPERSISTENCE=/ydata
 
 EXPOSE 1234
 
-# Run the server (no shell, no flags; envs do the work)
-CMD ["npx","y-websocket"]
+# Run the custom server
+CMD ["node", "server.js"]

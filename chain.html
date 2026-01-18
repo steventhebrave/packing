@@ -80,7 +80,7 @@
 
     // --- CONFIGURATION ---
     const SERVER_URL = "wss://packing-list-realtime.fly.dev";
-    const START_DATE = new Date(2025, 9, 27); // Oct 27, 2025 (month is 0-indexed)
+    const START_DATE = new Date(2026, 1, 18); // Oct 27, 2025 (month is 0-indexed)
     const NUM_WEEKS = 8;
     const NUM_DAYS = NUM_WEEKS * 7;
     const PARTICIPANTS = ['P1', 'P2', 'P3', 'P4'];
@@ -125,6 +125,7 @@
 
     // Shared data types
     const chainData = doc.getMap("chainData"); // Map of "date-participant" -> status ("check" | "cross" | null)
+    const chainImages = doc.getMap("chainImages"); // Map of "date-participant" -> image URL
     const participantNames = doc.getMap("participantNames"); // Map of participant index -> custom name
 
     // Track if we've synced initial data
@@ -142,6 +143,126 @@
 
     // --- HELPER FUNCTIONS ---
 
+    /**
+     * Compresses and resizes an image file to a maximum dimension.
+     * @param {File} file - The image file to compress.
+     * @param {number} maxWidth - Max width/height.
+     * @param {number} quality - JPEG quality (0-1).
+     * @returns {Promise<Blob>} - Compressed blob.
+     */
+    async function compressImage(file, maxWidth = 1280, quality = 0.8) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+          const img = new Image();
+          img.src = event.target.result;
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+
+            // Resize logic
+            if (width > height) {
+              if (width > maxWidth) {
+                height *= maxWidth / width;
+                width = maxWidth;
+              }
+            } else {
+              if (height > maxWidth) {
+                width *= maxWidth / height;
+                height = maxWidth;
+              }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            canvas.toBlob((blob) => {
+              resolve(blob);
+            }, 'image/jpeg', quality);
+          };
+          img.onerror = (err) => reject(err);
+        };
+        reader.onerror = (err) => reject(err);
+      });
+    }
+
+    async function uploadImage(file, dateKey, participantIndex) {
+      statusEl.className = 'absolute top-0 right-0 w-3 h-3 rounded-full bg-blue-500 animate-pulse'; // Uploading state
+
+      try {
+        const compressedBlob = await compressImage(file);
+
+        // Create form data
+        const formData = new FormData();
+        // Append with a filename that ends in .jpg
+        formData.append('image', compressedBlob, 'upload.jpg');
+
+        // Note: Using the HTTP endpoint of the same server
+        // Use relative path if hosting on same origin, or construct full URL
+        let uploadUrl = '/upload';
+
+        // Handle dev environment (if SERVER_URL is different origin)
+        if (SERVER_URL.startsWith('http') || SERVER_URL.startsWith('ws')) {
+          const url = new URL(SERVER_URL);
+          const protocol = url.protocol === 'wss:' ? 'https:' : 'http:';
+          uploadUrl = `${protocol}//${url.host}/upload`;
+        }
+
+        const response = await fetch(uploadUrl, {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!response.ok) throw new Error('Upload failed');
+
+        const data = await response.json();
+        const imageUrl = data.url;
+
+        // Save to Yjs
+        doc.transact(() => {
+          const key = getCellKey(dateKey, participantIndex);
+          chainImages.set(key, imageUrl);
+        });
+
+        // Reset status
+        updateStatusUI(provider.status);
+
+      } catch (e) {
+        console.error("Upload error", e);
+        statusEl.className = 'absolute top-0 right-0 w-3 h-3 rounded-full bg-red-500';
+        setTimeout(() => updateStatusUI(provider.status), 2000);
+        alert("Failed to upload image. Please try again.");
+      }
+    }
+
+    // Hidden file input for handling uploads
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+    fileInput.style.display = 'none';
+    document.body.appendChild(fileInput);
+
+    // Global handler state
+    let currentUploadTarget = null; // { dateKey, participantIndex }
+
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0] && currentUploadTarget) {
+        uploadImage(e.target.files[0], currentUploadTarget.dateKey, currentUploadTarget.participantIndex);
+      }
+      // Reset
+      fileInput.value = '';
+      currentUploadTarget = null;
+    });
+
+    function triggerUpload(dateKey, participantIndex) {
+      currentUploadTarget = { dateKey, participantIndex };
+      fileInput.click();
+    }
+
     function formatDate(date) {
       const day = date.getDate();
       const month = date.toLocaleDateString('en-US', { month: 'short' });
@@ -158,6 +279,11 @@
 
     function getCellStatus(dateKey, participantIndex) {
       return chainData.get(getCellKey(dateKey, participantIndex)) || null;
+    }
+
+    function getCellImage(dateKey, participantIndex) {
+      const key = getCellKey(dateKey, participantIndex);
+      return chainImages.get(key) || null;
     }
 
     function setCellStatus(dateKey, participantIndex, status) {
@@ -205,9 +331,9 @@
       }
     }
 
-    function renderCell(status, isCompact) {
+    function renderCell(status, imageUrl, isCompact) {
       const cell = document.createElement('td');
-      cell.className = 'chain-cell text-center border-b border-gray-100 dark:border-gray-700';
+      cell.className = 'chain-cell text-center border-b border-gray-100 dark:border-gray-700 relative'; // Relative for positioning image
 
       if (isCompact) {
         cell.className += ' p-[2px]'; // Ultra reduced padding
@@ -219,31 +345,59 @@
           dotColor = 'bg-red-500';
         }
 
-        cell.innerHTML = `<div class="inline-block w-3 h-3 rounded-full ${dotColor}"></div>`;
+        let content = `<div class="inline-block w-3 h-3 rounded-full ${dotColor}"></div>`;
+
+        // Indicator for image presence in compact mode
+        if (imageUrl) {
+          content += `<div class="absolute bottom-[2px] right-[2px] w-1.5 h-1.5 bg-blue-400 rounded-full border border-white dark:border-gray-800"></div>`;
+        }
+
+        cell.innerHTML = content;
 
       } else {
         cell.className += ' p-3'; // Normal padding
 
-        if (status === 'check') {
-          cell.innerHTML = `
+        let inner = '';
+
+        if (imageUrl) {
+          // Build the image URL.
+          // If absolute path from other domain, fine. If relative, needs base if testing locally against remote
+          let src = imageUrl;
+          if (SERVER_URL.startsWith('wss') && !imageUrl.startsWith('http')) {
+            const url = new URL(SERVER_URL);
+            const protocol = 'https:';
+            src = `${protocol}//${url.host}${imageUrl}`;
+          }
+
+          inner = `
+               <div class="group relative inline-block">
+                 <img src="${src}" class="w-8 h-8 rounded-full object-cover border-2 border-green-500" alt="Proof" />
+                 <div class="absolute inset-0 bg-black/50 rounded-full opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>
+                 </div>
+               </div>
+             `;
+        } else if (status === 'check') {
+          inner = `
             <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="inline-block text-green-500">
               <polyline points="20 6 9 17 4 12"></polyline>
             </svg>
           `;
         } else if (status === 'cross') {
-          cell.innerHTML = `
+          inner = `
             <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="inline-block text-red-500">
               <line x1="18" y1="6" x2="6" y2="18"></line>
               <line x1="6" y1="6" x2="18" y2="18"></line>
             </svg>
           `;
         } else {
-          cell.innerHTML = `
+          inner = `
             <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block text-gray-300 dark:text-gray-600">
               <circle cx="12" cy="12" r="10"></circle>
             </svg>
           `;
         }
+        cell.innerHTML = inner;
       }
 
       return cell;
@@ -322,13 +476,25 @@
         // Participant columns
         for (let participantIndex = 0; participantIndex < PARTICIPANTS.length; participantIndex++) {
           const status = getCellStatus(dateKey, participantIndex);
-          const cell = renderCell(status, isCompact);
+          const imageUrl = getCellImage(dateKey, participantIndex);
+          const cell = renderCell(status, imageUrl, isCompact);
 
           // Check if this cell is editable
           const isEditable = LOCKED_PARTICIPANT === null || LOCKED_PARTICIPANT === participantIndex;
 
           if (isEditable) {
-            cell.onclick = () => cycleCellStatus(dateKey, participantIndex);
+            // Normal click to cycle status
+            cell.onclick = (e) => {
+              // If clicking an existing image, maybe show full size? For now just cycle status underneath
+              cycleCellStatus(dateKey, participantIndex);
+            };
+
+            // Right click/Long press to upload
+            cell.oncontextmenu = (e) => {
+              e.preventDefault();
+              triggerUpload(dateKey, participantIndex);
+            };
+
           } else {
             // Disable interaction for locked cells
             cell.className = cell.className.replace('cursor-pointer', 'cursor-not-allowed opacity-50');
@@ -442,6 +608,10 @@
     // --- YJS OBSERVERS ---
 
     chainData.observe(() => {
+      if (isInitialSyncComplete) renderGrid();
+    });
+
+    chainImages.observe(() => {
       if (isInitialSyncComplete) renderGrid();
     });
 
