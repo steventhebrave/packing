@@ -1,7 +1,8 @@
-const CACHE_NAME = 'packing-list-v1';
+const CACHE_NAME = 'packing-list-v2';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
+    './counters.html',
     './manifest.json',
     './icon.svg',
     'https://cdn.tailwindcss.com',

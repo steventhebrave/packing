@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Counters</title>
+
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet" />
+
+    <meta name="theme-color" content="#3b82f6" />
+
+    <style>
+        body {
+            font-family: "Inter", system-ui, sans-serif;
+        }
+
+        /* Hide the number input spinners so the big number stays clean */
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        input[type="number"] {
+            -moz-appearance: textfield;
+            appearance: textfield;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-100 dark:bg-gray-900 text-slate-800 dark:text-slate-200 min-h-screen p-4 md:p-8">
+
+    <main class="max-w-2xl mx-auto">
+        <header class="mb-10 text-center">
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-2">Counters</h1>
+            <div id="status"
+                class="inline-block mt-2 px-3 py-1 rounded-full text-sm font-medium bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                Connecting…
+            </div>
+        </header>
+
+        <section class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <!-- Aster -->
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-6 text-center">
+                <h2 class="text-2xl font-bold text-slate-900 dark:text-white mb-6">Aster</h2>
+                <div class="flex items-center justify-center gap-3">
+                    <button data-action="dec" data-counter="aster" aria-label="Decrease Aster"
+                        class="shrink-0 w-14 h-14 flex items-center justify-center rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-3xl font-bold text-slate-700 dark:text-slate-200 transition-colors select-none">−</button>
+                    <input type="number" inputmode="numeric" data-counter="aster" aria-label="Aster count"
+                        class="count w-24 text-center text-5xl font-bold bg-transparent text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg py-1"
+                        value="0" />
+                    <button data-action="inc" data-counter="aster" aria-label="Increase Aster"
+                        class="shrink-0 w-14 h-14 flex items-center justify-center rounded-full bg-blue-600 hover:bg-blue-700 text-3xl font-bold text-white transition-colors select-none">+</button>
+                </div>
+            </div>
+
+            <!-- Lyra -->
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-md p-6 text-center">
+                <h2 class="text-2xl font-bold text-slate-900 dark:text-white mb-6">Lyra</h2>
+                <div class="flex items-center justify-center gap-3">
+                    <button data-action="dec" data-counter="lyra" aria-label="Decrease Lyra"
+                        class="shrink-0 w-14 h-14 flex items-center justify-center rounded-full bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-3xl font-bold text-slate-700 dark:text-slate-200 transition-colors select-none">−</button>
+                    <input type="number" inputmode="numeric" data-counter="lyra" aria-label="Lyra count"
+                        class="count w-24 text-center text-5xl font-bold bg-transparent text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg py-1"
+                        value="0" />
+                    <button data-action="inc" data-counter="lyra" aria-label="Increase Lyra"
+                        class="shrink-0 w-14 h-14 flex items-center justify-center rounded-full bg-blue-600 hover:bg-blue-700 text-3xl font-bold text-white transition-colors select-none">+</button>
+                </div>
+            </div>
+        </section>
+
+        <footer class="mt-10 text-center">
+            <p class="text-xs text-gray-500">Share this page's URL to collaborate in real-time!</p>
+        </footer>
+    </main>
+
+    <script type="module">
+        import * as Y from "https://jspm.dev/yjs";
+        import { WebsocketProvider } from "https://jspm.dev/y-websocket";
+        import { IndexeddbPersistence } from "https://jspm.dev/y-indexeddb";
+
+        // --- CONFIGURATION ---
+        const SERVER_URL = "wss://packing-list-realtime.fly.dev";
+        const COUNTERS = ["aster", "lyra"];
+
+        /**
+         * Gets the room name from the URL hash.
+         * If no hash is present, it generates a new random one and updates the URL.
+         */
+        function getRoomNameFromUrl() {
+            if (window.location.hash) {
+                return window.location.hash.substring(1);
+            } else {
+                const newRoom = 'counter-' + crypto.randomUUID().split('-')[0];
+                window.location.hash = newRoom;
+                return newRoom;
+            }
+        }
+
+        const ROOM_NAME = getRoomNameFromUrl();
+
+        // --- DYNAMIC MANIFEST ---
+        // Update the manifest so the installed app opens this specific room and is
+        // named for this page rather than the shared default.
+        async function updateManifest() {
+            try {
+                const response = await fetch('./manifest.json');
+                const manifest = await response.json();
+
+                manifest.name = 'Counters';
+                manifest.short_name = 'Counters';
+                manifest.description = 'Simple shared counters for Aster and Lyra.';
+                // Open this specific room when launched from the home screen
+                manifest.start_url = window.location.href;
+                // Unique id so this installs as its own app
+                manifest.id = 'counters-' + ROOM_NAME;
+
+                // Blob URLs change the base path, so relative icon links break. Make them absolute.
+                if (manifest.icons) {
+                    manifest.icons.forEach(icon => {
+                        icon.src = new URL(icon.src, window.location.href).href;
+                    });
+                }
+
+                const stringManifest = JSON.stringify(manifest);
+                const blob = new Blob([stringManifest], { type: 'application/json' });
+                const manifestURL = URL.createObjectURL(blob);
+
+                let manifestLink = document.querySelector('link[rel="manifest"]');
+                if (!manifestLink) {
+                    manifestLink = document.createElement('link');
+                    manifestLink.rel = 'manifest';
+                    document.head.appendChild(manifestLink);
+                }
+                manifestLink.href = manifestURL;
+            } catch (error) {
+                console.error('Error updating manifest:', error);
+            }
+        }
+        updateManifest();
+
+        // --- YJS SETUP ---
+        const doc = new Y.Doc();
+        const provider = new WebsocketProvider(SERVER_URL, ROOM_NAME, doc);
+
+        // Offline persistence
+        const idbProvider = new IndexeddbPersistence(ROOM_NAME, doc);
+
+        // Shared data: Map of counter key -> integer
+        const counters = doc.getMap("counters");
+
+        let isInitialSyncComplete = false;
+
+        // --- DOM ELEMENTS ---
+        const statusEl = document.getElementById("status");
+        const inputs = {};
+        const decButtons = {};
+        const incButtons = {};
+        COUNTERS.forEach(key => {
+            inputs[key] = document.querySelector(`input.count[data-counter="${key}"]`);
+            decButtons[key] = document.querySelector(`button[data-action="dec"][data-counter="${key}"]`);
+            incButtons[key] = document.querySelector(`button[data-action="inc"][data-counter="${key}"]`);
+        });
+
+        // --- DATA HELPERS ---
+        function getCount(key) {
+            const v = counters.get(key);
+            return Number.isFinite(v) ? v : 0;
+        }
+
+        function setCount(key, value) {
+            doc.transact(() => {
+                counters.set(key, value);
+            });
+        }
+
+        // --- RENDERING ---
+        function render() {
+            if (!isInitialSyncComplete) return;
+            COUNTERS.forEach(key => {
+                const input = inputs[key];
+                // Don't clobber the value while the user is typing into this field
+                if (document.activeElement !== input) {
+                    input.value = String(getCount(key));
+                }
+            });
+        }
+
+        // --- EVENT LISTENERS ---
+        COUNTERS.forEach(key => {
+            incButtons[key].addEventListener('click', () => setCount(key, getCount(key) + 1));
+            decButtons[key].addEventListener('click', () => setCount(key, getCount(key) - 1));
+
+            const input = inputs[key];
+
+            // Commit valid numbers as the user types; tolerate intermediate states ("" or "-")
+            input.addEventListener('input', () => {
+                const v = parseInt(input.value, 10);
+                if (!Number.isNaN(v)) setCount(key, v);
+            });
+
+            // Normalise on blur (empty / invalid -> 0) and reflect the stored value
+            input.addEventListener('blur', () => {
+                const v = parseInt(input.value, 10);
+                const final = Number.isNaN(v) ? 0 : v;
+                setCount(key, final);
+                input.value = String(final);
+            });
+
+            // Enter confirms the typed value
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') input.blur();
+            });
+        });
+
+        // --- STATUS UI ---
+        function updateStatusUI(status) {
+            let text, colorClasses;
+            switch (status) {
+                case 'connected':
+                    text = 'Connected';
+                    colorClasses = 'bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200';
+                    break;
+                case 'disconnected':
+                    text = 'Disconnected';
+                    colorClasses = 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200';
+                    break;
+                case 'offline':
+                    text = 'Offline';
+                    colorClasses = 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200';
+                    break;
+                default:
+                    text = 'Connecting…';
+                    colorClasses = 'bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200';
+            }
+            statusEl.textContent = text;
+            statusEl.className = `inline-block mt-2 px-3 py-1 rounded-full text-sm font-medium transition-colors ${colorClasses}`;
+        }
+
+        // --- WIRING ---
+        provider.on('sync', synced => {
+            if (synced && !isInitialSyncComplete) {
+                isInitialSyncComplete = true;
+                render();
+            }
+        });
+
+        // Load from local IndexedDB too (covers offline launch before the socket syncs)
+        idbProvider.on('synced', () => {
+            if (!isInitialSyncComplete) {
+                isInitialSyncComplete = true;
+                render();
+            }
+        });
+
+        provider.on('status', e => {
+            if (navigator.onLine) updateStatusUI(e.status);
+        });
+
+        window.addEventListener('offline', () => updateStatusUI('offline'));
+        window.addEventListener('online', () => updateStatusUI(provider.status || 'connecting'));
+        updateStatusUI(navigator.onLine ? provider.status || 'connecting' : 'offline');
+
+        counters.observe(render);
+
+        // --- PWA SERVICE WORKER REGISTRATION ---
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./service-worker.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    }, err => {
+                        console.log('ServiceWorker registration failed: ', err);
+                    });
+            });
+        }
+    </script>
+</body>
+
+</html>
