@@ -110,15 +110,29 @@
                 Reset all to zero
             </button>
 
-            <details class="w-full max-w-xs text-center">
+            <details class="w-full max-w-xs">
                 <summary
-                    class="cursor-pointer text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 select-none">
-                    Lifetime total
+                    class="cursor-pointer text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 select-none text-center">
+                    Lifetime totals
                 </summary>
-                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                    Total spins ever counted:
-                    <span id="lifetime-total" class="font-bold text-slate-800 dark:text-slate-200">0</span>
-                </p>
+                <div class="mt-2 text-sm text-gray-500 dark:text-gray-400 space-y-1">
+                    <div class="flex justify-between gap-4">
+                        <span>Aster</span>
+                        <span id="lifetime-aster" class="font-bold text-slate-800 dark:text-slate-200">0</span>
+                    </div>
+                    <div class="flex justify-between gap-4">
+                        <span>Lyra</span>
+                        <span id="lifetime-lyra" class="font-bold text-slate-800 dark:text-slate-200">0</span>
+                    </div>
+                    <div class="flex justify-between gap-4">
+                        <span>Mummy</span>
+                        <span id="lifetime-mummy" class="font-bold text-slate-800 dark:text-slate-200">0</span>
+                    </div>
+                    <div class="flex justify-between gap-4">
+                        <span>Daddy</span>
+                        <span id="lifetime-daddy" class="font-bold text-slate-800 dark:text-slate-200">0</span>
+                    </div>
+                </div>
             </details>
         </div>
 
@@ -201,9 +215,9 @@
 
         // Shared data: Map of counter key -> integer
         const counters = doc.getMap("counters");
-        // Lifetime stats: "bankedTotal" holds spins folded in by previous resets.
-        // The displayed lifetime total = bankedTotal + the current visible counts,
-        // so resetting never loses the running tally.
+        // Lifetime stats: "banked-<key>" holds each person's spins folded in by
+        // previous resets. Their displayed lifetime total = banked-<key> + current
+        // count, so resetting never loses the running tally.
         const meta = doc.getMap("meta");
 
         let isInitialSyncComplete = false;
@@ -211,14 +225,15 @@
         // --- DOM ELEMENTS ---
         const statusEl = document.getElementById("status");
         const resetBtn = document.getElementById("reset-btn");
-        const lifetimeTotalEl = document.getElementById("lifetime-total");
         const inputs = {};
         const decButtons = {};
         const incButtons = {};
+        const lifetimeEls = {};
         COUNTERS.forEach(key => {
             inputs[key] = document.querySelector(`input.count[data-counter="${key}"]`);
             decButtons[key] = document.querySelector(`button[data-action="dec"][data-counter="${key}"]`);
             incButtons[key] = document.querySelector(`button[data-action="inc"][data-counter="${key}"]`);
+            lifetimeEls[key] = document.getElementById(`lifetime-${key}`);
         });
 
         // --- DATA HELPERS ---
@@ -233,26 +248,24 @@
             });
         }
 
-        function getCurrentSum() {
-            return COUNTERS.reduce((sum, key) => sum + getCount(key), 0);
-        }
-
-        function getBankedTotal() {
-            const v = meta.get("bankedTotal");
+        function getBankedTotal(key) {
+            const v = meta.get(`banked-${key}`);
             return Number.isFinite(v) ? v : 0;
         }
 
-        // Lifetime total = spins banked by previous resets + the current visible counts.
-        function getLifetimeTotal() {
-            return getBankedTotal() + getCurrentSum();
+        // Per-person lifetime total = spins banked by previous resets + their current count.
+        function getLifetimeTotal(key) {
+            return getBankedTotal(key) + getCount(key);
         }
 
-        // Fold the current counts into the banked total, then zero every counter.
-        // The lifetime total is unchanged, so we keep counting across resets.
+        // Fold each person's current count into their banked total, then zero every counter.
+        // Each lifetime total is unchanged, so we keep counting across resets.
         function resetAll() {
             doc.transact(() => {
-                meta.set("bankedTotal", getBankedTotal() + getCurrentSum());
-                COUNTERS.forEach(key => counters.set(key, 0));
+                COUNTERS.forEach(key => {
+                    meta.set(`banked-${key}`, getBankedTotal(key) + getCount(key));
+                    counters.set(key, 0);
+                });
             });
         }
 
@@ -265,8 +278,8 @@
                 if (document.activeElement !== input) {
                     input.value = String(getCount(key));
                 }
+                lifetimeEls[key].textContent = getLifetimeTotal(key).toLocaleString();
             });
-            lifetimeTotalEl.textContent = getLifetimeTotal().toLocaleString();
         }
 
         // --- EVENT LISTENERS ---
