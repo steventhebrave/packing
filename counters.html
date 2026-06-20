@@ -104,6 +104,24 @@
             </div>
         </section>
 
+        <div class="mt-6 flex flex-col items-center gap-3">
+            <button id="reset-btn"
+                class="text-sm border border-gray-500 text-gray-500 hover:bg-gray-500 hover:text-white rounded-lg px-3 py-1 font-medium transition-colors">
+                Reset all to zero
+            </button>
+
+            <details class="w-full max-w-xs text-center">
+                <summary
+                    class="cursor-pointer text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 select-none">
+                    Lifetime total
+                </summary>
+                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                    Total spins ever counted:
+                    <span id="lifetime-total" class="font-bold text-slate-800 dark:text-slate-200">0</span>
+                </p>
+            </details>
+        </div>
+
         <footer class="mt-6 text-center">
             <p class="text-xs text-gray-500">Share this page's URL to collaborate in real-time!</p>
         </footer>
@@ -183,11 +201,17 @@
 
         // Shared data: Map of counter key -> integer
         const counters = doc.getMap("counters");
+        // Lifetime stats: "bankedTotal" holds spins folded in by previous resets.
+        // The displayed lifetime total = bankedTotal + the current visible counts,
+        // so resetting never loses the running tally.
+        const meta = doc.getMap("meta");
 
         let isInitialSyncComplete = false;
 
         // --- DOM ELEMENTS ---
         const statusEl = document.getElementById("status");
+        const resetBtn = document.getElementById("reset-btn");
+        const lifetimeTotalEl = document.getElementById("lifetime-total");
         const inputs = {};
         const decButtons = {};
         const incButtons = {};
@@ -209,6 +233,29 @@
             });
         }
 
+        function getCurrentSum() {
+            return COUNTERS.reduce((sum, key) => sum + getCount(key), 0);
+        }
+
+        function getBankedTotal() {
+            const v = meta.get("bankedTotal");
+            return Number.isFinite(v) ? v : 0;
+        }
+
+        // Lifetime total = spins banked by previous resets + the current visible counts.
+        function getLifetimeTotal() {
+            return getBankedTotal() + getCurrentSum();
+        }
+
+        // Fold the current counts into the banked total, then zero every counter.
+        // The lifetime total is unchanged, so we keep counting across resets.
+        function resetAll() {
+            doc.transact(() => {
+                meta.set("bankedTotal", getBankedTotal() + getCurrentSum());
+                COUNTERS.forEach(key => counters.set(key, 0));
+            });
+        }
+
         // --- RENDERING ---
         function render() {
             if (!isInitialSyncComplete) return;
@@ -219,6 +266,7 @@
                     input.value = String(getCount(key));
                 }
             });
+            lifetimeTotalEl.textContent = getLifetimeTotal().toLocaleString();
         }
 
         // --- EVENT LISTENERS ---
@@ -246,6 +294,31 @@
             input.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') input.blur();
             });
+        });
+
+        // --- RESET (two-click confirm, mirroring index.html's "Clear All") ---
+        const RESET_DEFAULT_CLASS = "text-sm border border-gray-500 text-gray-500 hover:bg-gray-500 hover:text-white rounded-lg px-3 py-1 font-medium transition-colors";
+        const RESET_ARMED_CLASS = "text-sm bg-gray-500 text-white hover:bg-gray-600 rounded-lg px-3 py-1 font-medium transition-colors";
+        let isResetPending = false;
+        let resetTimeout = null;
+
+        function disarmReset() {
+            isResetPending = false;
+            resetBtn.className = RESET_DEFAULT_CLASS;
+            resetBtn.textContent = "Reset all to zero";
+        }
+
+        resetBtn.addEventListener("click", () => {
+            if (isResetPending) {
+                clearTimeout(resetTimeout);
+                resetAll();
+                disarmReset();
+            } else {
+                isResetPending = true;
+                resetBtn.className = RESET_ARMED_CLASS;
+                resetBtn.textContent = "Are you sure? Click again";
+                resetTimeout = setTimeout(disarmReset, 3000);
+            }
         });
 
         // --- STATUS UI ---
@@ -297,6 +370,7 @@
         updateStatusUI(navigator.onLine ? provider.status || 'connecting' : 'offline');
 
         counters.observe(render);
+        meta.observe(render);
 
         // --- PWA SERVICE WORKER REGISTRATION ---
         if ('serviceWorker' in navigator) {
