@@ -1,0 +1,26 @@
+{
+  "title": "Geo Connections",
+  "subtitle": "Create four groups of four!",
+  "groups": [
+    {
+      "name": "EUROPEAN CAPITALS",
+      "level": 0,
+      "members": ["Paris", "Rome", "Madrid", "Berlin"]
+    },
+    {
+      "name": "MAJOR RIVERS",
+      "level": 1,
+      "members": ["Nile", "Amazon", "Congo", "Volga"]
+    },
+    {
+      "name": "U.S. STATES BORDERING MEXICO",
+      "level": 2,
+      "members": ["Texas", "Arizona", "California", "New Mexico"]
+    },
+    {
+      "name": "ALSO A NAME OR EVERYDAY WORD",
+      "level": 3,
+      "members": ["Turkey", "Chad", "Chile", "Jordan"]
+    }
+  ]
+}
