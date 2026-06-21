@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Geo Connections</title>
+
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet" />
+
+    <meta name="theme-color" content="#5a594e" />
+
+    <style>
+        body {
+            font-family: "Inter", system-ui, sans-serif;
+        }
+
+        /* Difficulty colours (NYT-style) */
+        .level-0 { background-color: #f9df6d; color: #1a1a1a; } /* yellow  */
+        .level-1 { background-color: #a0c35a; color: #1a1a1a; } /* green   */
+        .level-2 { background-color: #b0c4ef; color: #1a1a1a; } /* blue    */
+        .level-3 { background-color: #ba81c5; color: #1a1a1a; } /* purple  */
+
+        .tile {
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            transition: transform 0.08s ease, background-color 0.15s ease, color 0.15s ease;
+        }
+        .tile:active { transform: scale(0.95); }
+
+        .tile.selected {
+            background-color: #5a594e;
+            color: #ffffff;
+        }
+
+        /* Shake animation for wrong guesses */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-6px); }
+            40% { transform: translateX(6px); }
+            60% { transform: translateX(-4px); }
+            80% { transform: translateX(4px); }
+        }
+        .shake { animation: shake 0.4s ease; }
+
+        /* Pop animation when a tile is selected */
+        @keyframes pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.08); }
+            100% { transform: scale(1); }
+        }
+        .pop { animation: pop 0.18s ease; }
+    </style>
+</head>
+
+<body class="bg-slate-100 dark:bg-gray-900 text-slate-800 dark:text-slate-200 min-h-screen p-4 md:p-8">
+
+    <main class="max-w-xl mx-auto">
+        <header class="mb-5 text-center">
+            <h1 id="title" class="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white">Geo Connections</h1>
+            <p id="subtitle" class="text-sm text-slate-500 dark:text-slate-400 mt-1">Create four groups of four!</p>
+        </header>
+
+        <!-- Message / toast -->
+        <div id="message" class="h-7 mb-2 flex items-center justify-center">
+            <span id="messageText"
+                class="hidden px-3 py-1 rounded-md text-sm font-semibold bg-slate-800 text-white"></span>
+        </div>
+
+        <!-- Solved groups appear here -->
+        <div id="solved" class="space-y-2 mb-2"></div>
+
+        <!-- The 4x4 grid of tiles -->
+        <div id="grid" class="grid grid-cols-4 gap-2"></div>
+
+        <!-- Mistakes remaining -->
+        <div class="mt-5 flex items-center justify-center gap-2 text-slate-600 dark:text-slate-300">
+            <span class="text-sm font-medium">Mistakes remaining:</span>
+            <div id="mistakes" class="flex items-center gap-1.5"></div>
+        </div>
+
+        <!-- Controls -->
+        <div id="controls" class="mt-5 flex items-center justify-center gap-3">
+            <button id="shuffleBtn"
+                class="px-5 py-2.5 rounded-full border border-slate-400 dark:border-slate-500 text-slate-800 dark:text-slate-100 font-semibold hover:bg-slate-200 dark:hover:bg-gray-800 transition-colors">Shuffle</button>
+            <button id="deselectBtn"
+                class="px-5 py-2.5 rounded-full border border-slate-400 dark:border-slate-500 text-slate-800 dark:text-slate-100 font-semibold hover:bg-slate-200 dark:hover:bg-gray-800 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                disabled>Deselect all</button>
+            <button id="submitBtn"
+                class="px-5 py-2.5 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-semibold hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                disabled>Submit</button>
+        </div>
+
+        <!-- End-of-game panel -->
+        <div id="endPanel" class="hidden mt-6 text-center">
+            <p id="endTitle" class="text-xl font-bold mb-3"></p>
+            <button id="playAgainBtn"
+                class="px-5 py-2.5 rounded-full bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-semibold hover:opacity-90 transition-opacity">Play
+                again</button>
+        </div>
+    </main>
+
+    <script>
+        const MAX_MISTAKES = 4;
+        const GROUP_SIZE = 4;
+
+        let game = null;          // parsed JSON
+        let tiles = [];           // current ordered list of {word, level} not yet solved
+        let selected = [];        // array of words currently selected
+        let solvedGroups = [];    // names already solved
+        let mistakes = 0;
+        let gameOver = false;
+
+        const $ = (id) => document.getElementById(id);
+
+        // --- Setup -------------------------------------------------------------
+        async function loadGame() {
+            try {
+                const res = await fetch('game.json', { cache: 'no-store' });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                game = await res.json();
+            } catch (err) {
+                $('grid').innerHTML =
+                    '<p class="col-span-4 text-center text-red-600">Could not load game.json</p>';
+                console.error(err);
+                return;
+            }
+            $('title').textContent = game.title || 'Connections';
+            if (game.subtitle) $('subtitle').textContent = game.subtitle;
+            document.title = game.title || 'Connections';
+            startGame();
+        }
+
+        function startGame() {
+            tiles = [];
+            game.groups.forEach((g) => {
+                g.members.forEach((word) => tiles.push({ word, level: g.level }));
+            });
+            shuffle(tiles);
+            selected = [];
+            solvedGroups = [];
+            mistakes = 0;
+            gameOver = false;
+            $('solved').innerHTML = '';
+            $('endPanel').classList.add('hidden');
+            $('controls').classList.remove('hidden');
+            renderMistakes();
+            render();
+        }
+
+        function shuffle(arr) {
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        function groupByLevel(level) {
+            return game.groups.find((g) => g.level === level);
+        }
+
+        // --- Rendering ---------------------------------------------------------
+        function render() {
+            const grid = $('grid');
+            grid.innerHTML = '';
+            tiles.forEach((t) => {
+                const btn = document.createElement('button');
+                const isSel = selected.includes(t.word);
+                btn.className =
+                    'tile aspect-[5/4] sm:aspect-[3/2] rounded-md flex items-center justify-center text-center px-1 ' +
+                    'font-bold uppercase leading-tight ' +
+                    'bg-slate-200 dark:bg-gray-700 text-slate-900 dark:text-white ' +
+                    (isSel ? 'selected' : '');
+                // Scale font to word length so long names fit
+                btn.style.fontSize = t.word.length > 9 ? '0.7rem' : (t.word.length > 6 ? '0.8rem' : '0.95rem');
+                btn.textContent = t.word;
+                btn.disabled = gameOver;
+                btn.addEventListener('click', () => onTileClick(t.word, btn));
+                grid.appendChild(btn);
+            });
+            updateControls();
+        }
+
+        function renderMistakes() {
+            const wrap = $('mistakes');
+            wrap.innerHTML = '';
+            const remaining = MAX_MISTAKES - mistakes;
+            for (let i = 0; i < MAX_MISTAKES; i++) {
+                const dot = document.createElement('span');
+                dot.className =
+                    'w-4 h-4 rounded-full transition-colors ' +
+                    (i < remaining ? 'bg-slate-700 dark:bg-slate-200' : 'bg-slate-300 dark:bg-gray-600');
+                wrap.appendChild(dot);
+            }
+        }
+
+        function updateControls() {
+            $('submitBtn').disabled = selected.length !== GROUP_SIZE || gameOver;
+            $('deselectBtn').disabled = selected.length === 0 || gameOver;
+        }
+
+        // --- Interaction -------------------------------------------------------
+        function onTileClick(word, btn) {
+            if (gameOver) return;
+            const idx = selected.indexOf(word);
+            if (idx >= 0) {
+                selected.splice(idx, 1);
+                btn.classList.remove('selected');
+            } else {
+                if (selected.length >= GROUP_SIZE) return;
+                selected.push(word);
+                btn.classList.add('selected', 'pop');
+                setTimeout(() => btn.classList.remove('pop'), 200);
+            }
+            updateControls();
+        }
+
+        function showMessage(text, ms = 1400) {
+            const el = $('messageText');
+            el.textContent = text;
+            el.classList.remove('hidden');
+            clearTimeout(showMessage._t);
+            if (ms > 0) {
+                showMessage._t = setTimeout(() => el.classList.add('hidden'), ms);
+            }
+        }
+
+        function submit() {
+            if (selected.length !== GROUP_SIZE || gameOver) return;
+
+            // Determine the level breakdown of the selection
+            const levels = selected.map((w) => tiles.find((t) => t.word === w).level);
+            const counts = {};
+            levels.forEach((l) => (counts[l] = (counts[l] || 0) + 1));
+            const best = Math.max(...Object.values(counts));
+
+            if (best === GROUP_SIZE) {
+                solveGroup(levels[0]);
+            } else {
+                mistakes++;
+                renderMistakes();
+                shakeSelected();
+                if (best === GROUP_SIZE - 1) {
+                    showMessage('One away…');
+                }
+                if (mistakes >= MAX_MISTAKES) {
+                    setTimeout(endGame, 600);
+                }
+            }
+        }
+
+        function shakeSelected() {
+            const grid = $('grid');
+            [...grid.children].forEach((btn) => {
+                if (selected.includes(btn.textContent)) {
+                    btn.classList.add('shake');
+                    setTimeout(() => btn.classList.remove('shake'), 450);
+                }
+            });
+        }
+
+        function solveGroup(level) {
+            const g = groupByLevel(level);
+            solvedGroups.push(level);
+            // Remove solved words from the tile pool
+            tiles = tiles.filter((t) => t.level !== level);
+            selected = [];
+            renderSolvedBanner(g);
+            render();
+
+            if (solvedGroups.length === game.groups.length) {
+                setTimeout(() => endGame(true), 400);
+            }
+        }
+
+        function renderSolvedBanner(g) {
+            const banner = document.createElement('div');
+            banner.className =
+                'level-' + g.level + ' rounded-md py-2.5 px-3 text-center';
+            banner.innerHTML =
+                '<div class="font-extrabold uppercase tracking-wide text-sm">' + g.name + '</div>' +
+                '<div class="font-medium text-sm mt-0.5">' + g.members.join(', ') + '</div>';
+            $('solved').appendChild(banner);
+        }
+
+        // --- End game ----------------------------------------------------------
+        function endGame(won) {
+            gameOver = true;
+            // Reveal any unsolved groups (in difficulty order)
+            const remainingLevels = game.groups
+                .map((g) => g.level)
+                .filter((l) => !solvedGroups.includes(l))
+                .sort((a, b) => a - b);
+            remainingLevels.forEach((level) => {
+                renderSolvedBanner(groupByLevel(level));
+            });
+            tiles = [];
+            selected = [];
+            render();
+            $('controls').classList.add('hidden');
+            $('endPanel').classList.remove('hidden');
+            $('endTitle').textContent = won
+                ? 'Solved it! 🌍'
+                : 'Better luck next time!';
+        }
+
+        // --- Wire up controls --------------------------------------------------
+        $('shuffleBtn').addEventListener('click', () => {
+            if (gameOver) return;
+            shuffle(tiles);
+            render();
+        });
+        $('deselectBtn').addEventListener('click', () => {
+            selected = [];
+            render();
+        });
+        $('submitBtn').addEventListener('click', submit);
+        $('playAgainBtn').addEventListener('click', () => {
+            // Re-fetch in case the JSON changed, then restart.
+            loadGame();
+        });
+
+        loadGame();
+    </script>
+</body>
+
+</html>
