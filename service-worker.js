@@ -1,4 +1,4 @@
-const CACHE_NAME = 'packing-list-v4';
+const CACHE_NAME = 'packing-list-v5';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
@@ -10,12 +10,18 @@ const ASSETS_TO_CACHE = [
 ];
 
 self.addEventListener('install', (event) => {
+    // Activate this new worker as soon as it's finished installing, instead of
+    // waiting for every open instance of the app to be closed first.
+    self.skipWaiting();
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
-            // We use {cache: 'reload'} to ensure we get fresh copies on install
-            // For external resources like fonts/tailwind, simple fetch is usually fine,
-            // but explicitly caching them ensures they are available offline.
-            return cache.addAll(ASSETS_TO_CACHE);
+            // Bypass the HTTP cache for our own assets so a version bump always
+            // pulls fresh copies. External resources (fonts/tailwind) are left as
+            // plain requests; caching them just makes them available offline.
+            const requests = ASSETS_TO_CACHE.map((url) =>
+                url.startsWith('http') ? url : new Request(url, { cache: 'reload' })
+            );
+            return cache.addAll(requests);
         })
     );
 });
@@ -40,6 +46,6 @@ self.addEventListener('activate', (event) => {
                     }
                 })
             );
-        })
+        }).then(() => self.clients.claim()) // Take control of open pages immediately
     );
 });

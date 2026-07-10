@@ -65,38 +65,51 @@
 
     <main class="max-w-2xl mx-auto p-4 md:p-8">
 
-        <!-- Add Item Button (triggers modal) -->
-        <div class="mb-4">
-            <button id="open-add-item-modal-btn"
-                class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-colors shadow">
-                Add New Item...
-            </button>
-        </div>
+        <!-- Your Take List Panel -->
+        <div class="border border-gray-300 dark:border-gray-700 rounded-xl p-4 md:p-6 mb-8">
+            <h1 class="text-2xl font-bold text-center text-slate-900 dark:text-white mb-4">Your take list</h1>
 
-        <!-- Packing List -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md">
-            <ul id="packing-list" class="divide-y divide-gray-200 dark:divide-gray-700">
-                <!-- List items will be rendered here -->
-            </ul>
-        </div>
-        <div class="mt-4 flex justify-end items-center gap-4">
-            <button id="clear-completed-btn"
-                class="text-sm text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition-colors">
-                Clear Completed
-            </button>
-            <button id="clear-all-btn"
-                class="text-sm border border-gray-500 text-gray-500 hover:bg-gray-500 hover:text-white rounded-lg px-3 py-1 font-medium transition-colors">
-                Clear All Items
-            </button>
+            <!-- Packing List -->
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md">
+                <ul id="packing-list" class="divide-y divide-gray-200 dark:divide-gray-700">
+                    <!-- List items will be rendered here -->
+                </ul>
+            </div>
+            <div class="mt-4 flex justify-end items-center gap-4">
+                <button id="clear-completed-btn"
+                    class="text-sm text-gray-500 hover:text-red-500 dark:hover:text-red-400 transition-colors">
+                    Clear Completed
+                </button>
+                <button id="clear-all-btn"
+                    class="text-sm border border-gray-500 text-gray-500 hover:bg-gray-500 hover:text-white rounded-lg px-3 py-1 font-medium transition-colors">
+                    Clear All Items
+                </button>
+            </div>
         </div>
 
         <!-- Bundles Section -->
         <section class="mt-12">
-            <h3 class="text-2xl font-bold text-slate-900 dark:text-white mb-4">Quickly add bundles of items to your list
-            </h3>
+            <div class="border border-gray-300 dark:border-gray-700 rounded-xl p-4 md:p-6">
+                <h3 class="text-lg font-semibold text-center text-slate-900 dark:text-white mb-4">Tap a bundle to add it
+                    to your list</h3>
 
-            <!-- List of existing bundles (Drag and Drop enabled) -->
-            <div id="bundle-list" class="space-y-4"></div>
+                <!-- List of existing bundles (Drag and Drop enabled) -->
+                <div id="bundle-list" class="space-y-4"></div>
+
+                <!-- Button to open the Create New Bundle modal -->
+                <div class="mt-4 flex justify-center">
+                    <button id="open-add-bundle-modal-btn"
+                        class="inline-flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition-colors shadow">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            class="w-5 h-5">
+                            <path d="M12 5v14" />
+                            <path d="M5 12h14" />
+                        </svg>
+                        Create New Bundle
+                    </button>
+                </div>
+            </div>
 
             <!-- Archived Bundles Section (Collapsible) -->
             <div id="archived-section" class="mt-6 hidden">
@@ -108,24 +121,6 @@
                         <!-- Archived bundles will be rendered here -->
                     </div>
                 </details>
-            </div>
-
-            <!-- Add New Bundle Form -->
-            <div class="mt-8 p-4 bg-gray-200 dark:bg-gray-800 rounded-lg">
-                <h3 class="text-lg font-semibold mb-2 text-slate-900 dark:text-white">Create New Bundle</h3>
-                <form id="add-bundle-form" class="flex flex-col gap-3">
-                    <input id="bundle-name" placeholder="Bundle name, e.g., Beach Trip"
-                        class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        required />
-                    <textarea id="bundle-items" placeholder="Enter items, separated by commas or new lines..."
-                        class="w-full bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        rows="3" required></textarea>
-                    <div id="new-bundle-color-picker" class="flex flex-wrap gap-2"></div>
-                    <button
-                        class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg self-start transition-colors">
-                        Create Bundle
-                    </button>
-                </form>
             </div>
 
             <!-- Import/Export Section -->
@@ -154,6 +149,16 @@
 
     </main>
 
+    <!-- Floating Action Button (Material 3 style) — opens the Add Item modal -->
+    <button id="open-add-item-modal-btn" aria-label="Add new item" title="Add new item"
+        class="fixed bottom-6 right-6 z-40 flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white shadow-lg hover:shadow-xl focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/40 active:scale-95 transition-all duration-200">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-7 h-7">
+            <path d="M12 5v14" />
+            <path d="M5 12h14" />
+        </svg>
+    </button>
+
     <!-- Add Item Modal -->
     <div id="add-item-modal"
         class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
@@ -168,7 +173,7 @@
                     class="w-full bg-slate-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="New item name..." required />
 
-                <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Add to which bundle?</p>
+                <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Also add to a bundle?</p>
                 <div id="modal-bundle-pills" class="flex flex-wrap gap-2 mb-6">
                     <!-- Bundle pills will be rendered here -->
                 </div>
@@ -177,8 +182,36 @@
                     <button id="modal-cancel-btn" type="button"
                         class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-slate-800 dark:text-slate-200 font-bold py-2 px-4 rounded-lg">Cancel</button>
                     <button id="modal-add-btn" type="submit"
-                        class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg opacity-50 cursor-not-allowed"
-                        disabled>Add Item</button>
+                        class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Add Item</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Create New Bundle Modal -->
+    <div id="add-bundle-modal"
+        class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold text-slate-900 dark:text-white">Create New Bundle</h2>
+                <button id="close-add-bundle-modal-btn"
+                    class="text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 text-2xl">&times;</button>
+            </div>
+            <form id="add-bundle-form" class="flex flex-col gap-3">
+                <input id="bundle-name" placeholder="Bundle name, e.g., Beach Trip"
+                    class="w-full bg-slate-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required />
+                <textarea id="bundle-items" placeholder="Enter items, separated by commas or new lines..."
+                    class="w-full bg-slate-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    rows="3" required></textarea>
+                <div id="new-bundle-color-picker" class="flex flex-wrap gap-2 mt-1"></div>
+                <div class="flex justify-end gap-3 mt-2">
+                    <button id="add-bundle-cancel-btn" type="button"
+                        class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-slate-800 dark:text-slate-200 font-bold py-2 px-4 rounded-lg">Cancel</button>
+                    <button type="submit"
+                        class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                        Create Bundle
+                    </button>
                 </div>
             </form>
         </div>
@@ -321,6 +354,10 @@
         const bundleNameInput = document.getElementById("bundle-name");
         const bundleItemsInput = document.getElementById("bundle-items");
         const newBundleColorPickerEl = document.getElementById("new-bundle-color-picker");
+        const openAddBundleModalBtn = document.getElementById("open-add-bundle-modal-btn");
+        const addBundleModal = document.getElementById("add-bundle-modal");
+        const closeAddBundleModalBtn = document.getElementById("close-add-bundle-modal-btn");
+        const addBundleCancelBtn = document.getElementById("add-bundle-cancel-btn");
         // Modal elements
         const openModalBtn = document.getElementById("open-add-item-modal-btn");
         const addItemModal = document.getElementById("add-item-modal");
@@ -358,7 +395,7 @@
         function renderPackingList() {
             packingListEl.innerHTML = "";
             if (items.length === 0) {
-                packingListEl.innerHTML = `<li class="text-center text-gray-500 py-4">Your list is empty. Add a bundle to get started!</li>`;
+                packingListEl.innerHTML = `<li class="text-center py-8"><span class="block text-xl font-semibold text-slate-700 dark:text-slate-200">Your list is empty</span><span class="block mt-1 text-base text-gray-500 dark:text-gray-400">Tap a bundle to quickly populate your list!</span></li>`;
                 return;
             }
             items.toArray().forEach((item) => {
@@ -893,9 +930,8 @@
 
         // --- MODAL LOGIC ---
         function openAddItemModal() {
-            modalState = { selectedBundle: null, itemName: '' };
+            modalState = { selectedBundle: null };
             modalItemNameInput.value = '';
-            updateModalAddButton();
             populateModalPills();
             addItemModal.classList.remove('hidden');
             modalItemNameInput.focus();
@@ -916,10 +952,6 @@
                 const pill = createPill(name, name, color);
                 modalBundlePillsEl.append(pill);
             });
-
-            // Add "Just this once" option at the end, with inverted styling
-            const oneOffPill = createPill('Just this once', 'one-off', BUNDLE_COLORS[0].hex, true);
-            modalBundlePillsEl.append(oneOffPill);
         }
 
         function createPill(name, dataName, color, inverted = false) {
@@ -938,16 +970,6 @@
                 pill.style.backgroundColor = 'transparent';
             }
             return pill;
-        }
-
-        function updateModalAddButton() {
-            const isEnabled = modalState.itemName.length > 0 && modalState.selectedBundle !== null;
-            modalAddBtn.disabled = !isEnabled;
-            if (isEnabled) {
-                modalAddBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-            } else {
-                modalAddBtn.classList.add('opacity-50', 'cursor-not-allowed');
-            }
         }
 
         // --- IMPORT/EXPORT LOGIC ---
@@ -1149,6 +1171,17 @@
         updateStatusUI(navigator.onLine ? provider.status || 'connecting' : 'offline');
 
 
+        function openAddBundleModal() {
+            addBundleForm.reset();
+            renderColorPicker(newBundleColorPickerEl, BUNDLE_COLORS[0].hex);
+            addBundleModal.classList.remove('hidden');
+            bundleNameInput.focus();
+        }
+
+        function closeAddBundleModal() {
+            addBundleModal.classList.add('hidden');
+        }
+
         addBundleForm.addEventListener("submit", (e) => {
             e.preventDefault();
             const name = bundleNameInput.value.trim();
@@ -1157,6 +1190,14 @@
             createNewBundle(name, itemsArr, color);
             addBundleForm.reset();
             renderColorPicker(newBundleColorPickerEl, BUNDLE_COLORS[0].hex);
+            closeAddBundleModal();
+        });
+
+        openAddBundleModalBtn.addEventListener('click', openAddBundleModal);
+        closeAddBundleModalBtn.addEventListener('click', closeAddBundleModal);
+        addBundleCancelBtn.addEventListener('click', closeAddBundleModal);
+        addBundleModal.addEventListener('click', (e) => {
+            if (e.target === addBundleModal) closeAddBundleModal(); // Close on backdrop click
         });
 
         clearCompletedBtn.addEventListener("click", clearCompleted);
@@ -1191,31 +1232,35 @@
             if (e.target === addItemModal) closeAddItemModal(); // Close on backdrop click
         });
 
-        modalItemNameInput.addEventListener('input', (e) => {
-            modalState.itemName = e.target.value.trim();
-            updateModalAddButton();
-        });
-
         modalBundlePillsEl.addEventListener('click', (e) => {
             const selectedPill = e.target.closest('.modal-pill');
             if (!selectedPill) return;
 
-            // Update state and apply selection ring
-            modalState.selectedBundle = selectedPill.dataset.bundleName;
+            const clickedName = selectedPill.dataset.bundleName;
+            const alreadySelected = modalState.selectedBundle === clickedName;
+
+            // Clear any existing selection ring
             document.querySelectorAll('.modal-pill').forEach(p => {
                 p.classList.remove('ring-2', 'ring-offset-2', 'ring-blue-500', 'dark:ring-offset-gray-800');
             });
-            selectedPill.classList.add('ring-2', 'ring-offset-2', 'ring-blue-500', 'dark:ring-offset-gray-800');
 
-            updateModalAddButton();
+            if (alreadySelected) {
+                // Tapping the selected pill again clears it — item is added without a bundle
+                modalState.selectedBundle = null;
+            } else {
+                modalState.selectedBundle = clickedName;
+                selectedPill.classList.add('ring-2', 'ring-offset-2', 'ring-blue-500', 'dark:ring-offset-gray-800');
+            }
         });
 
         modalAddForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            if (modalState.selectedBundle === 'one-off') {
-                addNewItem(modalState.itemName);
+            const itemName = modalItemNameInput.value.trim();
+            if (!itemName) return;
+            if (modalState.selectedBundle) {
+                addItemToBundleAndList(modalState.selectedBundle, itemName);
             } else {
-                addItemToBundleAndList(modalState.selectedBundle, modalState.itemName);
+                addNewItem(itemName);
             }
             closeAddItemModal();
         });
