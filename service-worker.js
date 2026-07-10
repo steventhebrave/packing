@@ -1,10 +1,21 @@
-const CACHE_NAME = 'packing-list-v5';
+const CACHE_NAME = 'packing-list-v6';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
     './counters.html',
     './manifest.json',
-    './icon.svg',
+    './packing-icon/icon.svg',
+    './packing-icon/icon-16.png',
+    './packing-icon/icon-32.png',
+    './packing-icon/icon-180.png',
+    './packing-icon/icon-192.png',
+    './packing-icon/icon-512.png',
+    './spin-icon/icon.svg',
+    './spin-icon/icon-16.png',
+    './spin-icon/icon-32.png',
+    './spin-icon/icon-180.png',
+    './spin-icon/icon-192.png',
+    './spin-icon/icon-512.png',
     'https://cdn.tailwindcss.com',
     'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap'
 ];
