@@ -1,8 +1,9 @@
 const express = require('express');
 const http = require('http');
 const WebSocket = require('ws');
+const Y = require('yjs');
 // Valid import for y-websocket@1.5.4
-const { setupWSConnection, getYDoc } = require('y-websocket/bin/utils');
+const { setupWSConnection, getYDoc, getPersistence } = require('y-websocket/bin/utils');
 const multer = require('multer');
 const cors = require('cors');
 const path = require('path');
@@ -62,14 +63,36 @@ app.post('/upload', upload.single('image'), (req, res) => {
 // same value as ?token=... If WIDGET_TOKEN is unset, no token is required.
 const WIDGET_TOKEN = process.env.WIDGET_TOKEN || null;
 
-function getCounters(room) {
-    // getYDoc loads (and on first touch, restores from persistence) the shared doc.
-    return getYDoc(room).getMap('counters');
-}
-
 function readCount(counters, person) {
     const v = counters.get(person);
     return Number.isFinite(v) ? v : 0;
+}
+
+// getYDoc kicks off persistence loading ASYNCHRONOUSLY and returns an empty doc
+// immediately. A synchronous read on a "cold" room (no clients connected, so the
+// doc isn't already in memory) therefore sees count 0 and would clobber the real
+// value on disk — e.g. bumping a room that holds 5 responds {count:1}. This waits
+// for the persisted state and applies it to the shared doc before we read. It's
+// idempotent (safe on warm docs too) since applyUpdate re-adds only what's missing.
+async function getLoadedCounters(room) {
+    const doc = getYDoc(room);
+    const persistence = typeof getPersistence === 'function' ? getPersistence() : null;
+    if (persistence && persistence.provider && typeof persistence.provider.getYDoc === 'function') {
+        const persisted = await persistence.provider.getYDoc(room);
+        Y.applyUpdate(doc, Y.encodeStateAsUpdate(persisted));
+    }
+    return { doc, counters: doc.getMap('counters') };
+}
+
+// Serialize load+read+write per room so two near-simultaneous requests can't both
+// read the same base and lose one increment. Each room keeps the tail of a promise
+// chain; new work runs after the previous op settles (success or failure).
+const roomLocks = new Map();
+function withRoomLock(room, fn) {
+    const prev = roomLocks.get(room) || Promise.resolve();
+    const next = prev.then(fn, fn);
+    roomLocks.set(room, next.catch(() => {}));
+    return next;
 }
 
 // Validate common params; returns { room, person } or sends an error and returns null.
@@ -88,24 +111,40 @@ function parseCounterReq(req, res) {
 }
 
 // GET /api/count?room=counter-ab12&person=aster  ->  { count }
-app.get('/api/count', (req, res) => {
+app.get('/api/count', async (req, res) => {
     const p = parseCounterReq(req, res);
     if (!p) return;
-    res.json({ count: readCount(getCounters(p.room), p.person) });
+    try {
+        const count = await withRoomLock(p.room, async () => {
+            const { counters } = await getLoadedCounters(p.room);
+            return readCount(counters, p.person);
+        });
+        res.json({ count });
+    } catch (err) {
+        console.error('count failed', err);
+        res.status(500).json({ error: 'failed to read counter' });
+    }
 });
 
 // GET /api/increment?room=counter-ab12&person=aster[&by=1]  ->  { count }
 // GET so the simplest tools (a plain URL) can trigger it.
-app.get('/api/increment', (req, res) => {
+app.get('/api/increment', async (req, res) => {
     const p = parseCounterReq(req, res);
     if (!p) return;
     const by = parseInt(req.query.by, 10);
     const delta = Number.isNaN(by) ? 1 : by;
-    const doc = getYDoc(p.room);
-    const counters = doc.getMap('counters');
-    const next = readCount(counters, p.person) + delta;
-    doc.transact(() => counters.set(p.person, next));
-    res.json({ count: next });
+    try {
+        const count = await withRoomLock(p.room, async () => {
+            const { doc, counters } = await getLoadedCounters(p.room);
+            const next = readCount(counters, p.person) + delta;
+            doc.transact(() => counters.set(p.person, next));
+            return next;
+        });
+        res.json({ count });
+    } catch (err) {
+        console.error('increment failed', err);
+        res.status(500).json({ error: 'failed to increment counter' });
+    }
 });
 
 // --- WEBSOCKET HANDLING ---
