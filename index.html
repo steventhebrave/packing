@@ -76,7 +76,7 @@
             <h1 class="text-2xl font-bold text-center text-slate-900 dark:text-white mb-4">Your take list</h1>
 
             <!-- Packing List -->
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
                 <ul id="packing-list" class="divide-y divide-gray-200 dark:divide-gray-700">
                     <!-- List items will be rendered here -->
                 </ul>
@@ -129,18 +129,24 @@
                 </details>
             </div>
 
-            <!-- Import/Export Section -->
-            <div class="mt-8 p-4 bg-gray-200 dark:bg-gray-800 rounded-lg">
-                <h3 class="text-lg font-semibold mb-2 text-slate-900 dark:text-white">Manage Data</h3>
-                <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Save a backup of your list or import an
-                    existing one.</p>
-                <div class="flex gap-4">
-                    <button id="export-btn"
-                        class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg">Export</button>
-                    <button id="import-btn"
-                        class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg">Import</button>
-                    <input type="file" id="import-file-input" class="hidden" accept=".json">
-                </div>
+            <!-- Import/Export Section (Collapsible, de-emphasised) -->
+            <div class="mt-8">
+                <details class="bg-gray-200 dark:bg-gray-800 rounded-lg">
+                    <summary class="p-4 cursor-pointer text-sm font-medium text-gray-500 dark:text-gray-400">
+                        Manage Data
+                    </summary>
+                    <div class="p-4 border-t border-gray-300 dark:border-gray-700">
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Save a backup of your list or import an
+                            existing one.</p>
+                        <div class="flex gap-4">
+                            <button id="export-btn"
+                                class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg">Export</button>
+                            <button id="import-btn"
+                                class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg">Import</button>
+                            <input type="file" id="import-file-input" class="hidden" accept=".json">
+                        </div>
+                    </div>
+                </details>
             </div>
         </section>
 
