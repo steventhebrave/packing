@@ -55,6 +55,19 @@
             will-change: opacity, transform, max-height;
         }
 
+        /* Bundle group headings inside the packing list */
+        #packing-list li.group-heading {
+            transition: none;
+        }
+
+        .group-heading .chevron {
+            transition: transform 150ms ease;
+        }
+
+        .group-heading[data-collapsed="true"] .chevron {
+            transform: rotate(-90deg);
+        }
+
         /* When we trigger removal, we'll set inline styles, but this class is a fallback */
         .removing {
             opacity: 0 !important;
@@ -345,6 +358,10 @@
         };
         let isClearAllPending = false;
         let clearAllTimeout = null;
+        // Bundle groups collapsed in the packing list. This is a per-device view
+        // preference, so it lives in localStorage rather than the shared doc.
+        const COLLAPSED_GROUPS_KEY = `packing-collapsed-groups-${ROOM_NAME}`;
+        const collapsedGroups = loadCollapsedGroups();
         let pendingImportData = null;
         let itemsPendingDeletion = new Set();
         const deletionTimeouts = new Map();
@@ -410,7 +427,7 @@
                 packingListEl.innerHTML = `<li class="text-center py-8"><span class="block text-xl font-semibold text-slate-700 dark:text-slate-200">Your list is empty</span><span class="block mt-1 text-base text-gray-500 dark:text-gray-400">Tap a bundle to quickly populate your list!</span></li>`;
                 return;
             }
-            items.toArray().forEach((item) => {
+            const buildItemEl = (item) => {
                 const li = document.createElement("li");
                 li.dataset.id = item.id;
                 li.className = `flex items-center gap-3 p-4 transition-all cursor-pointer ${item.done ? 'done-item' : ''}`;
@@ -518,8 +535,125 @@
                 }
 
                 li.append(span, removeBtn);
-                packingListEl.append(li);
+                return li;
+            };
+
+            // Split the list into loose items and one group per bundle.
+            const resolveBundle = createBundleResolver();
+            const looseItems = [];
+            const groups = new Map(); // bundle name -> { color, items }
+            items.toArray().forEach((item) => {
+                const bundleName = resolveBundle(item);
+                if (!bundleName) {
+                    looseItems.push(item);
+                    return;
+                }
+                if (!groups.has(bundleName)) groups.set(bundleName, { color: item.bundleColor, items: [] });
+                groups.get(bundleName).items.push(item);
             });
+
+            // Loose items first, then bundle groups in a stable order: the order of the
+            // bundles section, followed by any bundles that no longer exist there.
+            looseItems.forEach(item => packingListEl.append(buildItemEl(item)));
+
+            const order = bundleOrder.toArray();
+            const rank = (name) => {
+                const i = order.indexOf(name);
+                return i === -1 ? Infinity : i;
+            };
+            const groupNames = Array.from(groups.keys())
+                .sort((a, b) => (rank(a) - rank(b)) || a.localeCompare(b));
+
+            groupNames.forEach((name) => {
+                const group = groups.get(name);
+                const isCollapsed = collapsedGroups.has(name);
+                packingListEl.append(buildGroupHeadingEl(name, group, isCollapsed));
+                if (!isCollapsed) {
+                    group.items.forEach(item => packingListEl.append(buildItemEl(item)));
+                }
+            });
+
+            // Forget collapsed state for groups that are no longer in the list
+            let pruned = false;
+            collapsedGroups.forEach((name) => {
+                if (!groups.has(name)) { collapsedGroups.delete(name); pruned = true; }
+            });
+            if (pruned) saveCollapsedGroups();
+        }
+
+        /** Builds the collapsible heading row for a bundle's items in the packing list. */
+        function buildGroupHeadingEl(name, group, isCollapsed) {
+            const li = document.createElement("li");
+            li.className = "group-heading bg-slate-50 dark:bg-gray-900/40";
+            li.dataset.group = name;
+            li.dataset.collapsed = String(isCollapsed);
+            if (group.color) li.style.borderLeft = `5px solid ${group.color}`;
+
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "w-full flex items-center gap-2 py-2 pr-4 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500";
+            btn.style.paddingLeft = group.color ? '11px' : '16px';
+            btn.setAttribute('aria-expanded', String(!isCollapsed));
+
+            const chevron = document.createElement("span");
+            chevron.className = "chevron flex-shrink-0 text-gray-400";
+            chevron.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+
+            const title = document.createElement("span");
+            title.textContent = name;
+            title.className = "flex-grow min-w-0 truncate text-sm font-semibold text-slate-700 dark:text-slate-200";
+
+            const doneCount = group.items.filter(it => it.done).length;
+            const count = document.createElement("span");
+            count.textContent = `${doneCount}/${group.items.length}`;
+            count.title = `${doneCount} of ${group.items.length} packed`;
+            count.className = "flex-shrink-0 text-xs font-medium tabular-nums text-gray-500 dark:text-gray-400";
+
+            btn.append(chevron, title, count);
+            btn.onclick = () => {
+                if (collapsedGroups.has(name)) collapsedGroups.delete(name);
+                else collapsedGroups.add(name);
+                saveCollapsedGroups();
+                renderPackingList();
+            };
+
+            li.append(btn);
+            return li;
+        }
+
+        /**
+         * Returns a function mapping a list item to the name of the bundle it came from
+         * (or null for loose items). Items added before bundle names were recorded only
+         * carry a colour, so for those we look for a bundle with that colour and item.
+         */
+        function createBundleResolver() {
+            let known = null;
+            return (item) => {
+                if (item.bundle) return item.bundle;
+                if (!item.bundleColor) return null;
+                if (!known) {
+                    known = [...bundleOrder.toArray(), ...archivedBundles.toArray()]
+                        .filter(name => bundles.get(name))
+                        .map(name => ({ name, ...normalizeBundle(bundles.get(name)) }));
+                }
+                const match = known.find(b => b.color === item.bundleColor && b.items.includes(item.text));
+                return match ? match.name : null;
+            };
+        }
+
+        function loadCollapsedGroups() {
+            try {
+                const stored = JSON.parse(localStorage.getItem(COLLAPSED_GROUPS_KEY));
+                return new Set(Array.isArray(stored) ? stored : []);
+            } catch (e) {
+                return new Set();
+            }
+        }
+
+        function saveCollapsedGroups() {
+            try {
+                localStorage.setItem(COLLAPSED_GROUPS_KEY, JSON.stringify([...collapsedGroups]));
+            } catch (e) { /* storage unavailable — collapse state just won't persist */ }
         }
 
         /** Renders the list of active bundles based on the `bundleOrder` array. */
@@ -803,7 +937,7 @@
                 // Part 2: Add item to the main list if it doesn't exist
                 const currentItemTexts = new Set(items.toArray().map(item => item.text));
                 if (!currentItemTexts.has(itemName)) {
-                    const newItem = { id: crypto.randomUUID(), text: itemName, done: false, bundleColor: color };
+                    const newItem = { id: crypto.randomUUID(), text: itemName, done: false, bundleColor: color, bundle: bundleName };
                     const firstDoneIndex = items.toArray().findIndex(it => it.done);
                     const insertionIndex = firstDoneIndex === -1 ? items.length : firstDoneIndex;
                     items.insert(insertionIndex, [newItem]);
@@ -869,7 +1003,7 @@
                 const currentItemTexts = new Set(items.toArray().map(item => item.text));
                 const newItems = itemsToAdd
                     .filter(text => !currentItemTexts.has(text))
-                    .map(text => ({ id: crypto.randomUUID(), text, done: false, bundleColor: color }));
+                    .map(text => ({ id: crypto.randomUUID(), text, done: false, bundleColor: color, bundle: bundleName }));
                 if (newItems.length > 0) {
                     const firstDoneIndex = items.toArray().findIndex(it => it.done);
                     const insertionIndex = firstDoneIndex === -1 ? items.length : firstDoneIndex;
@@ -940,6 +1074,13 @@
                         bundleOrder.delete(index, 1);
                         bundleOrder.insert(index, [newName]);
                     }
+                    // Keep list items grouped under the bundle's new name
+                    items.toArray().forEach((item, i) => {
+                        if (item.bundle === oldName) {
+                            items.delete(i, 1);
+                            items.insert(i, [{ ...item, bundle: newName }]);
+                        }
+                    });
                 }
                 bundles.set(newName, updatedBundle);
             });
@@ -1298,6 +1439,7 @@
         items.observe(renderPackingList);
 
         function renderAllBundles() {
+            renderPackingList(); // group order and headings depend on the bundles
             renderBundles();
             renderArchivedBundles();
             if (!addItemModal.classList.contains('hidden')) {
