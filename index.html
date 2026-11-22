@@ -72,15 +72,18 @@
         }
 
         /* Bundle group headings inside the packing list */
-        #packing-list li.group-heading {
+        #packing-list li.group-heading,
+        #packing-list li.done-toggle {
             transition: none;
         }
 
-        .group-heading .chevron {
+        .group-heading .chevron,
+        .done-toggle .chevron {
             transition: transform 150ms ease;
         }
 
-        .group-heading[data-collapsed="true"] .chevron {
+        .group-heading[data-collapsed="true"] .chevron,
+        .done-toggle[data-collapsed="true"] .chevron {
             transform: rotate(-90deg);
         }
 
@@ -377,7 +380,12 @@
         // Bundle groups collapsed in the packing list. This is a per-device view
         // preference, so it lives in localStorage rather than the shared doc.
         const COLLAPSED_GROUPS_KEY = `packing-collapsed-groups-${ROOM_NAME}`;
-        const collapsedGroups = loadCollapsedGroups();
+        const collapsedGroups = loadStoredSet(COLLAPSED_GROUPS_KEY);
+        // Sections whose crossed-off items are hidden (also per device). Keys are
+        // `group:<bundle name>` for bundle groups and LOOSE_SECTION for loose items.
+        const HIDDEN_DONE_KEY = `packing-hidden-done-${ROOM_NAME}`;
+        const LOOSE_SECTION = 'loose';
+        const hiddenDoneSections = loadStoredSet(HIDDEN_DONE_KEY);
         let pendingImportData = null;
         let itemsPendingDeletion = new Set();
         const deletionTimeouts = new Map();
@@ -444,7 +452,9 @@
             animateRowMoves(previousRects);
         }
 
-        const rowKey = (el) => el.dataset.id ? `item:${el.dataset.id}` : el.dataset.group ? `group:${el.dataset.group}` : null;
+        const rowKey = (el) => el.dataset.id ? `item:${el.dataset.id}`
+            : el.dataset.group ? `group:${el.dataset.group}`
+                : el.dataset.doneToggle ? `done-toggle:${el.dataset.doneToggle}` : null;
 
         /** Records where each row currently is on screen, keyed by item/group. */
         function captureRowRects() {
@@ -597,7 +607,18 @@
 
             // Loose items first, then bundle groups in a stable order: the order of the
             // bundles section, followed by any bundles that no longer exist there.
-            looseItems.forEach(item => packingListEl.append(buildItemEl(item)));
+            // Within a section: items still to pack, then a row to show/hide the
+            // crossed-off ones, then (unless hidden) the crossed-off items.
+            const appendSectionItems = (sectionKey, sectionItems, color) => {
+                const doneItems = sectionItems.filter(it => it.done);
+                sectionItems.filter(it => !it.done).forEach(item => packingListEl.append(buildItemEl(item)));
+                if (doneItems.length === 0) return;
+                const isHidden = hiddenDoneSections.has(sectionKey);
+                packingListEl.append(buildDoneToggleEl(sectionKey, doneItems.length, isHidden, color));
+                if (!isHidden) doneItems.forEach(item => packingListEl.append(buildItemEl(item)));
+            };
+
+            appendSectionItems(LOOSE_SECTION, looseItems, null);
 
             const order = bundleOrder.toArray();
             const rank = (name) => {
@@ -611,9 +632,7 @@
                 const group = groups.get(name);
                 const isCollapsed = collapsedGroups.has(name);
                 packingListEl.append(buildGroupHeadingEl(name, group, isCollapsed));
-                if (!isCollapsed) {
-                    group.items.forEach(item => packingListEl.append(buildItemEl(item)));
-                }
+                if (!isCollapsed) appendSectionItems(`group:${name}`, group.items, group.color);
             });
 
             // Forget collapsed state for groups that are no longer in the list
@@ -621,7 +640,54 @@
             collapsedGroups.forEach((name) => {
                 if (!groups.has(name)) { collapsedGroups.delete(name); pruned = true; }
             });
-            if (pruned) saveCollapsedGroups();
+            if (pruned) saveStoredSet(COLLAPSED_GROUPS_KEY, collapsedGroups);
+
+            pruned = false;
+            hiddenDoneSections.forEach((key) => {
+                if (key !== LOOSE_SECTION && !groups.has(key.slice('group:'.length))) {
+                    hiddenDoneSections.delete(key);
+                    pruned = true;
+                }
+            });
+            if (pruned) saveStoredSet(HIDDEN_DONE_KEY, hiddenDoneSections);
+        }
+
+        /** Builds the row that shows/hides a section's crossed-off items. */
+        function buildDoneToggleEl(sectionKey, doneCount, isHidden, color) {
+            const li = document.createElement("li");
+            li.className = "done-toggle";
+            li.dataset.doneToggle = sectionKey;
+            li.dataset.collapsed = String(isHidden);
+            if (color) li.style.borderLeft = `5px solid ${color}`;
+
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.className = "w-full flex items-center gap-2 py-2 pr-4 text-left text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500";
+            btn.style.paddingLeft = color ? '11px' : '16px';
+            btn.setAttribute('aria-expanded', String(!isHidden));
+            btn.title = isHidden ? "Show crossed-off items" : "Hide crossed-off items";
+
+            const chevron = document.createElement("span");
+            chevron.className = "chevron flex-shrink-0 text-gray-400";
+            chevron.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+
+            const label = document.createElement("span");
+            label.textContent = `${doneCount} crossed off`;
+
+            const action = document.createElement("span");
+            action.textContent = isHidden ? "Show" : "Hide";
+            action.className = "ml-auto";
+
+            btn.append(chevron, label, action);
+            btn.onclick = () => {
+                if (hiddenDoneSections.has(sectionKey)) hiddenDoneSections.delete(sectionKey);
+                else hiddenDoneSections.add(sectionKey);
+                saveStoredSet(HIDDEN_DONE_KEY, hiddenDoneSections);
+                renderPackingList();
+            };
+
+            li.append(btn);
+            return li;
         }
 
         /** Builds the collapsible heading row for a bundle's items in the packing list. */
@@ -656,7 +722,7 @@
             btn.onclick = () => {
                 if (collapsedGroups.has(name)) collapsedGroups.delete(name);
                 else collapsedGroups.add(name);
-                saveCollapsedGroups();
+                saveStoredSet(COLLAPSED_GROUPS_KEY, collapsedGroups);
                 renderPackingList();
             };
 
@@ -684,19 +750,19 @@
             };
         }
 
-        function loadCollapsedGroups() {
+        function loadStoredSet(storageKey) {
             try {
-                const stored = JSON.parse(localStorage.getItem(COLLAPSED_GROUPS_KEY));
+                const stored = JSON.parse(localStorage.getItem(storageKey));
                 return new Set(Array.isArray(stored) ? stored : []);
             } catch (e) {
                 return new Set();
             }
         }
 
-        function saveCollapsedGroups() {
+        function saveStoredSet(storageKey, set) {
             try {
-                localStorage.setItem(COLLAPSED_GROUPS_KEY, JSON.stringify([...collapsedGroups]));
-            } catch (e) { /* storage unavailable — collapse state just won't persist */ }
+                localStorage.setItem(storageKey, JSON.stringify([...set]));
+            } catch (e) { /* storage unavailable — the preference just won't persist */ }
         }
 
         /** Renders the list of active bundles based on the `bundleOrder` array. */
