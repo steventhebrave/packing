@@ -55,6 +55,22 @@
             will-change: opacity, transform, max-height;
         }
 
+        /* The row the user just ticked, while it glides to its new position: drawn
+           above its neighbours with a solid background so text doesn't overlap */
+        #packing-list li.moving-row {
+            position: relative;
+            z-index: 10;
+            background: #fff;
+            box-shadow: 0 4px 12px rgb(0 0 0 / 0.12);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            #packing-list li.moving-row {
+                background: #1f2937;
+                /* gray-800 */
+            }
+        }
+
         /* Bundle group headings inside the packing list */
         #packing-list li.group-heading {
             transition: none;
@@ -365,8 +381,9 @@
         let pendingImportData = null;
         let itemsPendingDeletion = new Set();
         const deletionTimeouts = new Map();
-        // Tracks fallback timeouts for toggle animations so we can cancel them when transitionend fires
-        const toggleTimeouts = new Map();
+        // The item the user just ticked/unticked, so its row can be drawn above the
+        // others while it moves to its new position
+        let lastToggledId = null;
         let bundlesPendingPermanentDeletion = new Set();
         const bundleDeletionTimeouts = new Map();
 
@@ -422,6 +439,59 @@
 
         /** Renders the main packing list. */
         function renderPackingList() {
+            const previousRects = captureRowRects();
+            renderPackingListRows();
+            animateRowMoves(previousRects);
+        }
+
+        const rowKey = (el) => el.dataset.id ? `item:${el.dataset.id}` : el.dataset.group ? `group:${el.dataset.group}` : null;
+
+        /** Records where each row currently is on screen, keyed by item/group. */
+        function captureRowRects() {
+            const rects = new Map();
+            for (const el of packingListEl.children) {
+                const key = rowKey(el);
+                if (key) rects.set(key, el.getBoundingClientRect());
+            }
+            return rects;
+        }
+
+        /**
+         * After a re-render, slides each row from where it was to where it is now
+         * (and fades in rows that are new), instead of letting them jump.
+         */
+        function animateRowMoves(previousRects) {
+            const toggledId = lastToggledId;
+            lastToggledId = null;
+            if (previousRects.size === 0) return;
+            if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+            const timing = { duration: 280, easing: 'cubic-bezier(0.2, 0, 0, 1)' };
+            for (const el of packingListEl.children) {
+                const key = rowKey(el);
+                if (!key) continue;
+                const before = previousRects.get(key);
+                if (!before) {
+                    el.animate([{ opacity: 0 }, { opacity: 1 }], timing);
+                    continue;
+                }
+                const dy = before.top - el.getBoundingClientRect().top;
+                if (Math.abs(dy) < 0.5) continue;
+
+                const isToggled = el.dataset.id === toggledId;
+                if (isToggled) el.classList.add('moving-row');
+                const animation = el.animate(
+                    [{ transform: `translateY(${dy}px)` }, { transform: 'translateY(0)' }], timing);
+                if (isToggled) {
+                    const cleanup = () => el.classList.remove('moving-row');
+                    animation.onfinish = cleanup;
+                    animation.oncancel = cleanup;
+                }
+            }
+        }
+
+        /** Rebuilds the packing list rows. */
+        function renderPackingListRows() {
             packingListEl.innerHTML = "";
             if (items.length === 0) {
                 packingListEl.innerHTML = `<li class="text-center py-8"><span class="block text-xl font-semibold text-slate-700 dark:text-slate-200">Your list is empty</span><span class="block mt-1 text-base text-gray-500 dark:text-gray-400">Tap a bundle to quickly populate your list!</span></li>`;
@@ -435,40 +505,13 @@
                     li.style.borderLeft = `5px solid ${item.bundleColor}`;
                     li.style.paddingLeft = '11px';
                 }
-                // Animate on toggle: collapse/fade the item from its current position,
-                // let remaining items slide up, then perform the Yjs toggle which reinserts the item
+                // Toggle straight away; renderPackingList animates every row from its
+                // old position to its new one, so the item glides to its new place.
                 li.onclick = (e) => {
                     // prevent double-activation when clicking the remove button
                     if (e.target.closest('button')) return;
-
-                    const liEl = packingListEl.querySelector(`li[data-id="${item.id}"]`);
-                    if (!liEl) return toggleItem(item.id);
-
-                    // Set a fixed start height so the collapse animates smoothly
-                    const startHeight = liEl.getBoundingClientRect().height;
-                    liEl.style.maxHeight = startHeight + 'px';
-                    // force reflow
-                    // eslint-disable-next-line no-unused-expressions
-                    liEl.offsetHeight;
-                    liEl.classList.add('removing');
-
-                    const onTransitionEnd = (ev) => {
-                        if (ev.propertyName === 'max-height' || ev.propertyName === 'opacity') {
-                            liEl.removeEventListener('transitionend', onTransitionEnd);
-                            // cancel fallback timeout if present
-                            if (toggleTimeouts.has(item.id)) {
-                                clearTimeout(toggleTimeouts.get(item.id));
-                                toggleTimeouts.delete(item.id);
-                            }
-                            // perform the actual toggle which will reinsert the item in the done section
-                            toggleItem(item.id);
-                        }
-                    };
-                    liEl.addEventListener('transitionend', onTransitionEnd);
-
-                    // Fallback: if transition doesn't fire, toggle after a short delay
-                    const fallbackId = setTimeout(() => { try { toggleItem(item.id); } catch (e) { } }, 400);
-                    toggleTimeouts.set(item.id, fallbackId);
+                    lastToggledId = item.id;
+                    toggleItem(item.id);
                 };
 
                 const span = document.createElement("span");
